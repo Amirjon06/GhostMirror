@@ -158,6 +158,13 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
+Run database migrations:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
 Run the backend:
 
 ```bash
