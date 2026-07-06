@@ -24,9 +24,9 @@ const navItems = [
 ]
 
 const stats = [
-  { label: 'Events indexed', value: '0', detail: 'Persistence starts in Milestone 3' },
-  { label: 'Active sources', value: '0', detail: 'Clipboard and filesystem arrive later' },
-  { label: 'Search mode', value: 'FTS5', detail: 'Planned after event storage' },
+  { label: 'Events indexed', value: '0', detail: 'Persistence is not connected yet' },
+  { label: 'Active sources', value: '0', detail: 'Clipboard and filesystem sources are offline' },
+  { label: 'Search mode', value: 'FTS5', detail: 'Keyword indexing is on the roadmap' },
 ]
 
 function App() {
@@ -67,7 +67,7 @@ function App() {
               Local-first by default
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              No cloud sync, no fake analytics, no AI layer until the event system works.
+              Workspace activity stays local by default and is stored only when event capture is enabled.
             </p>
           </div>
         </aside>
@@ -100,7 +100,7 @@ function App() {
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-medium text-cyan-100">
                         <Sparkles size={14} aria-hidden="true" />
-                        Milestone 1 scaffold
+                        Local workspace telemetry
                       </span>
                       <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
                         Local dashboard shell
@@ -111,9 +111,8 @@ function App() {
                         Real-time developer activity, ready for real data.
                       </h1>
                       <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                        GhostMirror starts with a clean local-first foundation: React, Tailwind,
-                        FastAPI, and a dashboard surface designed for event streams, search, and
-                        analytics once the backend is ready.
+                        GhostMirror provides a local dashboard surface for event streams, search,
+                        and activity analytics as the ingestion pipeline comes online.
                       </p>
                     </div>
                   </div>
@@ -133,7 +132,7 @@ function App() {
                   <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                     <div>
                       <h2 className="text-base font-semibold text-white">Recent activity</h2>
-                      <p className="mt-1 text-sm text-slate-400">Waiting for the event system milestone</p>
+                      <p className="mt-1 text-sm text-slate-400">No event source is connected</p>
                     </div>
                     <Clipboard className="text-slate-500" size={20} aria-hidden="true" />
                   </div>
@@ -144,8 +143,7 @@ function App() {
                     </div>
                     <h3 className="mt-4 text-sm font-semibold text-white">No events captured yet</h3>
                     <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                      Milestone 3 will introduce persisted events. Until then, this panel stays
-                      intentionally empty.
+                      Connect an event source to populate this timeline with local workspace activity.
                     </p>
                   </div>
                 </div>
@@ -162,7 +160,7 @@ function App() {
                       <div key={item} className="flex items-center justify-between text-sm">
                         <span className="text-slate-400">{item}</span>
                         <span className={index < 2 ? 'text-emerald-300' : 'text-slate-500'}>
-                          {index < 2 ? 'Scaffolded' : 'Next'}
+                          {index < 2 ? 'Available' : 'Pending'}
                         </span>
                       </div>
                     ))}
@@ -172,11 +170,11 @@ function App() {
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
                   <div className="flex items-center gap-2">
                     <Clock3 size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Next milestone</h2>
+                    <h2 className="text-base font-semibold text-white">Next capability</h2>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-400">
-                    The README gets promoted from starter notes into a senior-level project brief
-                    with architecture, roadmap, and engineering principles.
+                    Event persistence will provide the storage layer for timeline views, filters,
+                    and keyword search.
                   </p>
                 </div>
               </aside>
