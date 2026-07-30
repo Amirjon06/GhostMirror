@@ -1,190 +1,59 @@
 # GhostMirror
 
-GhostMirror is a local-first developer intelligence dashboard for capturing developer activity as structured events and making local workflow history easier to inspect.
+A local dashboard that captures your development activity in real time — file edits, terminal commands, git commits, and browser tabs — and gives you a searchable timeline of everything you did.
 
-The current application provides a React dashboard shell and a FastAPI backend with persisted event storage. Clipboard monitoring, filesystem ingestion, full-text search, richer activity views, semantic retrieval, and desktop packaging are planned.
+No cloud. No accounts. Everything stays on your machine.
 
-## Capabilities
+---
 
-Available now:
+## What it does
 
-- React + TypeScript dashboard shell in `apps/web`.
-- FastAPI service in `backend`.
-- `GET /health` endpoint for runtime checks.
-- SQLite-backed event persistence.
-- Event API for create, list, read, and delete operations.
-- SQLAlchemy model and Alembic migration for the `events` table.
-- Docker Compose configuration for local development.
+- Captures events from VS Code, terminal, git, and your browser
+- Shows a live feed of recent activity
+- Lets you search through your history
+- Tracks which sources are active and how much data is stored locally
 
-Planned:
+---
 
-- Clipboard event ingestion.
-- Filesystem event ingestion.
-- Keyword search with SQLite FTS5.
-- Source and event-type filtering.
-- Activity timeline and event detail views backed by persisted events.
-- Semantic retrieval after keyword search is stable.
-- Backend tests, frontend tests, and CI validation.
-- Desktop distribution with Tauri.
+## Tech stack
 
-## Architecture
+| Layer | Tech |
+|-------|------|
+| Frontend | React + TypeScript + Vite |
+| Backend | Python + FastAPI |
+| Database | SQLite |
+| Styling | Tailwind CSS |
 
-```mermaid
-flowchart LR
-  subgraph LocalMachine["Local developer machine"]
-    Clipboard["Clipboard monitor\nplanned"]
-    Filesystem["Filesystem monitor\nplanned"]
-    Web["React dashboard\napps/web"]
-    API["FastAPI service\nbackend/app"]
-    SQLite["SQLite database"]
-    FTS["SQLite FTS5 index\nplanned"]
-  end
+---
 
-  Clipboard -.->|planned events| API
-  Filesystem -.->|planned events| API
-  Web -->|HTTP API| API
-  API -->|event persistence| SQLite
-  SQLite -.->|planned keyword index| FTS
-  API -->|events| Web
-```
+## Running it locally
 
-Backend package layout:
+**Requirements:** Node.js, Python 3.11+
 
-```text
-backend/app
-|-- api
-|-- core
-|-- db
-|-- models
-|-- schemas
-`-- services
-```
-
-The backend separates routing, configuration, database access, persistence models, validation schemas, and service logic.
-
-## Tech Stack
-
-Frontend:
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- Zustand
-- TanStack Query
-
-Backend:
-
-- FastAPI
-- Python 3.11+
-- Pydantic
-- SQLite
-- SQLAlchemy
-- Alembic
-
-Planned testing and operations:
-
-- pytest
-- Vitest
-- Playwright
-- GitHub Actions
-
-Planned desktop distribution:
-
-- Tauri
-
-## Repository Layout
-
-```text
-ghostmirror/
-|-- apps/
-|   `-- web/              # React + TypeScript dashboard
-|-- backend/              # FastAPI application
-|   |-- alembic/          # database migrations
-|   `-- app/
-|       |-- api/          # HTTP routes
-|       |-- core/         # application settings and shared config
-|       |-- db/           # database setup and sessions
-|       |-- models/       # persistence models
-|       |-- schemas/      # request and response schemas
-|       `-- services/     # business logic
-|-- docs/                 # architecture notes and technical decisions
-|-- tests/                # test suites
-|-- .github/
-|   `-- workflows/        # CI workflows
-|-- docker-compose.yml
-`-- README.md
-```
-
-## Local Development
-
-Prerequisites:
-
-- Git
-- Node.js LTS
-- npm
-- Python 3.11+
-- Docker optional
-
-Frontend:
-
+**Frontend**
 ```bash
 cd apps/web
 npm install
 npm run dev
 ```
+Opens at `http://localhost:5173`
 
-Useful frontend checks:
-
+**Backend**
 ```bash
-cd apps/web
-npm run lint
-npm run build
-```
-
-Backend:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
 cd backend
-alembic upgrade head
-uvicorn app.main:app --reload
+python -m venv venv
+venv\Scripts\activate     # Windows
+source venv/bin/activate  # Mac/Linux
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-Health check:
+---
 
-```bash
-curl http://127.0.0.1:8000/health
+## Project structure
+
 ```
-
-Create an event:
-
-```bash
-curl -X POST http://127.0.0.1:8000/events \
-  -H "Content-Type: application/json" \
-  -d '{"source":"clipboard","event_type":"snippet","title":"Copied SQL query","content":"select * from events;","metadata":{"language":"sql"}}'
+apps/web/     → React dashboard
+backend/      → FastAPI + SQLite event API
+docs/         → notes and planning
 ```
-
-List events:
-
-```bash
-curl http://127.0.0.1:8000/events
-```
-
-Docker Compose:
-
-```bash
-docker compose up
-```
-
-## Roadmap
-
-- [x] Application foundation
-- [x] Local event persistence
-- [ ] Filesystem and clipboard ingestion
-- [ ] Full-text search
-- [ ] Activity timeline
-- [ ] Semantic retrieval
-- [ ] Desktop distribution
