@@ -1,59 +1,140 @@
 # GhostMirror
 
-A local dashboard that captures your development activity in real time — file edits, terminal commands, git commits, and browser tabs — and gives you a searchable timeline of everything you did.
+GhostMirror is a local-first developer activity dashboard for storing structured events and making local workflow history easier to inspect.
 
-No cloud. No accounts. Everything stays on your machine.
+The current application includes a React dashboard shell, a FastAPI backend, SQLite event persistence, and backend tests for the event API. Clipboard monitoring, filesystem ingestion, full-text search, richer timeline views, semantic retrieval, and desktop distribution are planned.
 
----
+## Capabilities
 
-## What it does
+Available now:
 
-- Captures events from VS Code, terminal, git, and your browser
-- Shows a live feed of recent activity
-- Lets you search through your history
-- Tracks which sources are active and how much data is stored locally
+- React + TypeScript dashboard shell in `apps/web`.
+- FastAPI service in `backend`.
+- `GET /health` endpoint for runtime checks.
+- SQLite-backed event persistence.
+- Event API for create, list, read, and delete operations.
+- SQLAlchemy model and Alembic migration for the `events` table.
+- Backend tests for health and event API behavior.
+- Docker Compose configuration for local development.
 
----
+Planned:
 
-## Tech stack
+- Clipboard event ingestion.
+- Filesystem event ingestion.
+- Keyword search with SQLite FTS5.
+- Source and event-type filtering.
+- Activity timeline and event detail views backed by persisted events.
+- Semantic retrieval after keyword search is stable.
+- Frontend tests and CI validation.
+- Desktop distribution with Tauri.
+
+## Tech Stack
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React + TypeScript + Vite |
-| Backend | Python + FastAPI |
-| Database | SQLite |
-| Styling | Tailwind CSS |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Python, FastAPI, Pydantic |
+| Database | SQLite, SQLAlchemy, Alembic |
+| Testing | pytest |
 
----
+## Architecture
 
-## Running it locally
+```mermaid
+flowchart LR
+  subgraph LocalMachine["Local developer machine"]
+    Clipboard["Clipboard monitor\nplanned"]
+    Filesystem["Filesystem monitor\nplanned"]
+    Web["React dashboard\napps/web"]
+    API["FastAPI service\nbackend/app"]
+    SQLite["SQLite database"]
+    FTS["SQLite FTS5 index\nplanned"]
+  end
 
-**Requirements:** Node.js, Python 3.11+
+  Clipboard -.->|planned events| API
+  Filesystem -.->|planned events| API
+  Web -->|HTTP API| API
+  API -->|event persistence| SQLite
+  SQLite -.->|planned keyword index| FTS
+  API -->|events| Web
+```
 
-**Frontend**
+## Running Locally
+
+Requirements:
+
+- Node.js LTS
+- npm
+- Python 3.11+
+
+Frontend:
+
 ```bash
 cd apps/web
 npm install
 npm run dev
 ```
-Opens at `http://localhost:5173`
 
-**Backend**
+Frontend checks:
+
 ```bash
+cd apps/web
+npm run lint
+npm run build
+```
+
+Backend:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
 cd backend
-python -m venv venv
-venv\Scripts\activate     # Windows
-source venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-uvicorn main:app --reload
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
----
+Backend tests:
 
-## Project structure
+```bash
+pytest
+```
 
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/health
 ```
-apps/web/     → React dashboard
-backend/      → FastAPI + SQLite event API
-docs/         → notes and planning
+
+Create an event:
+
+```bash
+curl -X POST http://127.0.0.1:8000/events \
+  -H "Content-Type: application/json" \
+  -d '{"source":"clipboard","event_type":"snippet","title":"Copied SQL query","content":"select * from events;","metadata":{"language":"sql"}}'
 ```
+
+List events:
+
+```bash
+curl http://127.0.0.1:8000/events
+```
+
+## Project Structure
+
+```text
+apps/web/     - React dashboard
+backend/      - FastAPI and SQLite event API
+docs/         - architecture notes and technical decisions
+tests/        - backend test suite
+```
+
+## Roadmap
+
+- [x] Application foundation
+- [x] Local event persistence
+- [x] Backend event API tests
+- [ ] Filesystem and clipboard ingestion
+- [ ] Full-text search
+- [ ] Activity timeline
+- [ ] Semantic retrieval
+- [ ] Desktop distribution
