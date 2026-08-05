@@ -1,19 +1,18 @@
-export type Source = "vscode" | "terminal" | "git" | "browser" | "filesystem";
-export type SourceState = "streaming" | "watching" | "idle" | "offline";
-
-export interface CaptureEvent {
-  id: string;
-  ts: Date;
-  source: Source;
-  action: string;
-  detail: string;
-  path?: string;
+export interface EventRecord {
+  id: number
+  source: string
+  event_type: string
+  title: string
+  content: string
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
-export interface SourceStatus {
-  id: Source;
-  label: string;
-  state: SourceState;
-  count: number;
-  lastSeen: Date;
+export interface EventCreatePayload {
+  source: string
+  event_type: string
+  title: string
+  content: string
+  metadata: Record<string, unknown>
 }

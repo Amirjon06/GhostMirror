@@ -1,19 +1,29 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
+  AlertCircle,
   Bell,
   BrainCircuit,
-  Clipboard,
+  CheckCircle2,
   Clock3,
   Command,
   Database,
-  Inbox,
   FileSearch,
   FolderGit2,
+  Inbox,
   LayoutDashboard,
+  Loader2,
+  Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
+
+import { createEvent, deleteEvent, listEvents } from './lib/api'
+import type { EventRecord } from './lib/types'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, active: true },
@@ -23,13 +33,82 @@ const navItems = [
   { label: 'Storage', icon: Database },
 ]
 
-const stats = [
-  { label: 'Events indexed', value: '0', detail: 'Persistence is not connected yet' },
-  { label: 'Active sources', value: '0', detail: 'Clipboard and filesystem sources are offline' },
-  { label: 'Search mode', value: 'FTS5', detail: 'Keyword indexing is on the roadmap' },
-]
+const sourceOptions = ['manual', 'clipboard', 'filesystem', 'git', 'editor']
+const eventTypeOptions = ['note', 'snippet', 'file_change', 'command', 'commit']
+const emptyEvents: EventRecord[] = []
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function formatMetadata(metadata: EventRecord['metadata']) {
+  const entries = Object.entries(metadata)
+  if (entries.length === 0) {
+    return null
+  }
+
+  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' · ')
+}
 
 function App() {
+  const queryClient = useQueryClient()
+  const [source, setSource] = useState('manual')
+  const [eventType, setEventType] = useState('note')
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+
+  const eventsQuery = useQuery({
+    queryKey: ['events'],
+    queryFn: listEvents,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: createEvent,
+    onSuccess: async () => {
+      setTitle('')
+      setContent('')
+      await queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+  })
+
+  const events = eventsQuery.data ?? emptyEvents
+  const activeSources = useMemo(() => new Set(events.map((event) => event.source)).size, [events])
+  const hasEvents = events.length > 0
+  const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
+
+  const stats = [
+    { label: 'Events indexed', value: String(events.length), detail: 'Loaded from the local event API' },
+    { label: 'Active sources', value: String(activeSources), detail: 'Based on stored event sources' },
+    { label: 'Search mode', value: 'Pending', detail: 'Keyword indexing is on the roadmap' },
+  ]
+
+  function handleCreateEvent(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!canCreate) {
+      return
+    }
+
+    createMutation.mutate({
+      source,
+      event_type: eventType,
+      title: title.trim(),
+      content: content.trim(),
+      metadata: {},
+    })
+  }
+
   return (
     <main className="min-h-screen bg-[#090b10] text-slate-100">
       <div className="flex min-h-screen">
@@ -103,16 +182,16 @@ function App() {
                         Local workspace telemetry
                       </span>
                       <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
-                        Local dashboard shell
+                        API-backed events
                       </span>
                     </div>
                     <div className="mt-8 max-w-3xl">
                       <h1 className="text-3xl font-semibold tracking-normal text-white md:text-5xl">
-                        Real-time developer activity, ready for real data.
+                        Real-time developer activity, stored locally.
                       </h1>
                       <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                        GhostMirror provides a local dashboard surface for event streams, search,
-                        and activity analytics as the ingestion pipeline comes online.
+                        GhostMirror now reads and writes structured events through the local FastAPI
+                        service. Ingestion sources and search build on this event layer.
                       </p>
                     </div>
                   </div>
@@ -129,39 +208,190 @@ function App() {
                 </div>
 
                 <div className="rounded-lg border border-white/10 bg-[#111620]">
-                  <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
                     <div>
                       <h2 className="text-base font-semibold text-white">Recent activity</h2>
-                      <p className="mt-1 text-sm text-slate-400">No event source is connected</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {eventsQuery.isError
+                          ? 'The event API is unavailable'
+                          : hasEvents
+                            ? `${events.length} stored event${events.length === 1 ? '' : 's'}`
+                            : 'No event source is connected'}
+                      </p>
                     </div>
-                    <Clipboard className="text-slate-500" size={20} aria-hidden="true" />
+                    <button
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      onClick={() => void eventsQuery.refetch()}
+                      disabled={eventsQuery.isFetching}
+                    >
+                      <RefreshCw
+                        size={16}
+                        className={eventsQuery.isFetching ? 'animate-spin' : ''}
+                        aria-hidden="true"
+                      />
+                      Refresh
+                    </button>
                   </div>
 
-                  <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400">
-                      <Inbox size={22} aria-hidden="true" />
+                  {eventsQuery.isLoading ? (
+                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center text-slate-400">
+                      <Loader2 size={26} className="animate-spin text-cyan-200" aria-hidden="true" />
+                      <p className="mt-4 text-sm">Loading events from the local API...</p>
                     </div>
-                    <h3 className="mt-4 text-sm font-semibold text-white">No events captured yet</h3>
-                    <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                      Connect an event source to populate this timeline with local workspace activity.
-                    </p>
-                  </div>
+                  ) : eventsQuery.isError ? (
+                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-400/20 bg-red-400/10 text-red-200">
+                        <AlertCircle size={22} aria-hidden="true" />
+                      </div>
+                      <h3 className="mt-4 text-sm font-semibold text-white">Event API unavailable</h3>
+                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+                        Start the backend on port 8000, then refresh this panel.
+                      </p>
+                    </div>
+                  ) : hasEvents ? (
+                    <div className="divide-y divide-white/10">
+                      {events.map((event) => (
+                        <article key={event.id} className="p-5 transition hover:bg-white/[0.03]">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span className="rounded bg-cyan-300/10 px-2 py-1 text-cyan-100">
+                                  {event.source}
+                                </span>
+                                <span>{event.event_type}</span>
+                                <span>{formatDate(event.created_at)}</span>
+                              </div>
+                              <h3 className="mt-3 text-sm font-semibold text-white">{event.title}</h3>
+                              <p className="mt-2 text-sm leading-6 text-slate-400">{event.content}</p>
+                              {formatMetadata(event.metadata) ? (
+                                <p className="mt-2 text-xs text-slate-500">{formatMetadata(event.metadata)}</p>
+                              ) : null}
+                            </div>
+                            <button
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                              type="button"
+                              aria-label={`Delete ${event.title}`}
+                              onClick={() => deleteMutation.mutate(event.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400">
+                        <Inbox size={22} aria-hidden="true" />
+                      </div>
+                      <h3 className="mt-4 text-sm font-semibold text-white">No events captured yet</h3>
+                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+                        Create a manual event to verify the local event API and database path.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </section>
 
               <aside className="space-y-6">
+                <form className="rounded-lg border border-white/10 bg-[#111620] p-5" onSubmit={handleCreateEvent}>
+                  <div className="flex items-center gap-2">
+                    <Plus size={18} className="text-cyan-200" aria-hidden="true" />
+                    <h2 className="text-base font-semibold text-white">Create event</h2>
+                  </div>
+
+                  <div className="mt-5 grid gap-3">
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Source
+                      <select
+                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                        value={source}
+                        onChange={(event) => setSource(event.target.value)}
+                      >
+                        {sourceOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Type
+                      <select
+                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                        value={eventType}
+                        onChange={(event) => setEventType(event.target.value)}
+                      >
+                        {eventTypeOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Title
+                      <input
+                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        placeholder="What happened?"
+                      />
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Content
+                      <textarea
+                        className="min-h-24 resize-none rounded-lg border border-white/10 bg-[#0d1017] px-3 py-2 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                        value={content}
+                        onChange={(event) => setContent(event.target.value)}
+                        placeholder="Add the event details"
+                      />
+                    </label>
+                  </div>
+
+                  {createMutation.isError ? (
+                    <p className="mt-3 text-sm leading-6 text-red-200">Could not create the event.</p>
+                  ) : null}
+
+                  <button
+                    className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="submit"
+                    disabled={!canCreate}
+                  >
+                    {createMutation.isPending ? (
+                      <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Plus size={16} aria-hidden="true" />
+                    )}
+                    Create event
+                  </button>
+                </form>
+
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-semibold text-white">System status</h2>
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.75)]" />
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        eventsQuery.isError
+                          ? 'bg-red-300 shadow-[0_0_18px_rgba(252,165,165,0.75)]'
+                          : 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.75)]'
+                      }`}
+                    />
                   </div>
                   <div className="mt-5 space-y-4">
-                    {['Frontend shell', 'FastAPI service', 'SQLite storage'].map((item, index) => (
-                      <div key={item} className="flex items-center justify-between text-sm">
+                    {[
+                      ['Frontend shell', 'Available'],
+                      ['Event API', eventsQuery.isError ? 'Unavailable' : eventsQuery.isLoading ? 'Checking' : 'Available'],
+                      ['SQLite storage', eventsQuery.isError ? 'Unknown' : 'Available'],
+                    ].map(([item, status]) => (
+                      <div key={item} className="flex items-center justify-between gap-4 text-sm">
                         <span className="text-slate-400">{item}</span>
-                        <span className={index < 2 ? 'text-emerald-300' : 'text-slate-500'}>
-                          {index < 2 ? 'Available' : 'Pending'}
-                        </span>
+                        <span className={status === 'Available' ? 'text-emerald-300' : 'text-slate-500'}>{status}</span>
                       </div>
                     ))}
                   </div>
@@ -173,10 +403,17 @@ function App() {
                     <h2 className="text-base font-semibold text-white">Next capability</h2>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-400">
-                    Event persistence will provide the storage layer for timeline views, filters,
-                    and keyword search.
+                    Full-text search will index stored event titles and content after the dashboard
+                    event flow is stable.
                   </p>
                 </div>
+
+                {deleteMutation.isSuccess ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    Event deleted.
+                  </div>
+                ) : null}
               </aside>
             </div>
           </div>

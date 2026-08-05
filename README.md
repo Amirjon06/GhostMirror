@@ -2,17 +2,18 @@
 
 GhostMirror is a local-first developer activity dashboard for storing structured events and making local workflow history easier to inspect.
 
-The current application includes a React dashboard shell, a FastAPI backend, SQLite event persistence, and backend tests for the event API. Clipboard monitoring, filesystem ingestion, full-text search, richer timeline views, semantic retrieval, and desktop distribution are planned.
+The current application includes a React dashboard connected to a FastAPI backend, SQLite event persistence, and backend tests for the event API. Clipboard monitoring, filesystem ingestion, full-text search, richer timeline views, semantic retrieval, and desktop distribution are planned.
 
 ## Capabilities
 
 Available now:
 
-- React + TypeScript dashboard shell in `apps/web`.
+- React + TypeScript dashboard in `apps/web`.
 - FastAPI service in `backend`.
 - `GET /health` endpoint for runtime checks.
 - SQLite-backed event persistence.
 - Event API for create, list, read, and delete operations.
+- Dashboard UI for listing, creating, refreshing, and deleting events.
 - SQLAlchemy model and Alembic migration for the `events` table.
 - Backend tests for health and event API behavior.
 - Docker Compose configuration for local development.
@@ -73,6 +74,8 @@ cd apps/web
 npm install
 npm run dev
 ```
+
+The frontend calls `http://127.0.0.1:8000` by default. Set `VITE_API_BASE_URL` to use a different API URL.
 
 Frontend checks:
 
