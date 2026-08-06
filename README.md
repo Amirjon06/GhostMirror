@@ -9,6 +9,7 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - SQLite event storage through SQLAlchemy.
 - Alembic migration for the `events` table.
 - SQLite FTS5 index for event title and content search.
+- Clipboard ingestion command for capturing copied text as events.
 - Event API for create, list, read, delete, keyword search, source filtering, and event type filtering.
 - Dashboard UI connected to the event API.
 - Backend pytest coverage for health, event lifecycle, validation, search, and filters.
@@ -17,7 +18,6 @@ GhostMirror is a local development activity dashboard. It stores structured even
 
 ## Planned Work
 
-- Clipboard event ingestion.
 - Filesystem event ingestion.
 - Event detail and timeline views.
 - Frontend component tests.
@@ -76,6 +76,20 @@ Run backend tests:
 
 ```bash
 pytest
+```
+
+Capture clipboard events:
+
+```bash
+cd backend
+python -m app.cli.clipboard
+```
+
+Capture the current clipboard value once:
+
+```bash
+cd backend
+python -m app.cli.clipboard --once
 ```
 
 Run frontend checks:
@@ -144,7 +158,8 @@ tests/              Backend tests
 - [x] Dashboard API integration
 - [x] Backend and frontend CI
 - [x] SQLite FTS5 search
-- [ ] Clipboard and filesystem ingestion
+- [x] Clipboard ingestion
+- [ ] Filesystem ingestion
 - [ ] Timeline and detail views
 - [ ] Semantic retrieval
 - [ ] Desktop packaging

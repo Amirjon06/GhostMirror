@@ -13,6 +13,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 | Models | `backend/app/models` | SQLAlchemy table mappings. |
 | Schemas | `backend/app/schemas` | Pydantic request and response models. |
 | Services | `backend/app/services` | Database operations used by route handlers. |
+| CLI commands | `backend/app/cli` | Local command entry points for ingestion tasks. |
 | Migrations | `backend/alembic` | Database schema migrations. |
 | Tests | `tests` | Backend API tests. |
 
@@ -45,3 +46,16 @@ Alembic is used for migrations. The application also calls `Base.metadata.create
 The current search implementation uses a SQLite FTS5 virtual table for event titles and content. Database triggers keep the FTS table in sync when events are inserted, updated, or deleted.
 
 Source and event type filters are exact matches. If the FTS table is not available, the backend falls back to case-insensitive keyword matching with SQL `LIKE`.
+
+## Ingestion
+
+Clipboard ingestion runs as a local command:
+
+```bash
+cd backend
+python -m app.cli.clipboard
+```
+
+The command polls the system clipboard and stores changed text values as `clipboard` source events with the `snippet` event type.
+
+Use `--once` to capture the current clipboard value and exit.

@@ -33,3 +33,9 @@ The service keeps a `LIKE` fallback for databases where the FTS table is not ava
 Status: accepted
 
 Tauri packaging is planned, but the current application runs as a web app plus local API. This keeps the storage and event API stable before adding desktop distribution.
+
+## Start Ingestion With A CLI Command
+
+Status: accepted
+
+Clipboard ingestion starts as a backend CLI command. This keeps capture behavior testable before adding desktop process management.
