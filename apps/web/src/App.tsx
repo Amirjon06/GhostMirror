@@ -34,7 +34,7 @@ const navItems = [
   { label: 'Storage', icon: Database },
 ]
 
-const sourceOptions = ['manual', 'clipboard', 'filesystem', 'git', 'editor']
+const sourceOptions = ['manual', 'clipboard', 'filesystem', 'demo', 'git', 'editor']
 const eventTypeOptions = ['note', 'snippet', 'file_snapshot', 'file_change', 'command', 'commit']
 const emptyEvents: EventRecord[] = []
 

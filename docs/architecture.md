@@ -69,3 +69,12 @@ python -m app.cli.filesystem /path/to/workspace --once
 ```
 
 The command scans text files and stores changed file snapshots as `filesystem` source events with the `file_snapshot` event type. Hidden files and directories are skipped unless `--include-hidden` is provided.
+
+Demo events can be created with:
+
+```bash
+cd backend
+python -m app.cli.seed_demo
+```
+
+The demo seed command is idempotent by default and stores events with `source="demo"`.
