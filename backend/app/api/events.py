@@ -19,10 +19,20 @@ def create_event(event_in: EventCreate, db: Annotated[Session, Depends(get_db)])
 @router.get("", response_model=list[EventRead])
 def list_events(
     db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    source: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
+    event_type: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[EventRead]:
-    events = event_service.list_events(db, limit=limit, offset=offset)
+    events = event_service.list_events(
+        db,
+        q=q,
+        source=source,
+        event_type=event_type,
+        limit=limit,
+        offset=offset,
+    )
     return [EventRead.from_model(event) for event in events]
 
 

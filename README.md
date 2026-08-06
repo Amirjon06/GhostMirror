@@ -13,6 +13,7 @@ Available now:
 - `GET /health` endpoint for runtime checks.
 - SQLite-backed event persistence.
 - Event API for create, list, read, and delete operations.
+- Event keyword search and filtering by source or event type.
 - Dashboard UI for listing, creating, refreshing, and deleting events.
 - SQLAlchemy model and Alembic migration for the `events` table.
 - Backend tests for health and event API behavior.
@@ -22,8 +23,7 @@ Planned:
 
 - Clipboard event ingestion.
 - Filesystem event ingestion.
-- Keyword search with SQLite FTS5.
-- Source and event-type filtering.
+- SQLite FTS5 indexing for larger local event history.
 - Activity timeline and event detail views backed by persisted events.
 - Semantic retrieval after keyword search is stable.
 - Frontend tests and CI validation.
@@ -120,6 +120,12 @@ List events:
 
 ```bash
 curl http://127.0.0.1:8000/events
+```
+
+Search and filter events:
+
+```bash
+curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
 ```
 
 ## Project Structure

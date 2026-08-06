@@ -1,8 +1,12 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
 from app.schemas.event import EventCreate
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def create_event(db: Session, event_in: EventCreate) -> Event:
@@ -19,13 +23,38 @@ def create_event(db: Session, event_in: EventCreate) -> Event:
     return event
 
 
-def list_events(db: Session, limit: int = 50, offset: int = 0) -> list[Event]:
+def list_events(
+    db: Session,
+    q: str | None = None,
+    source: str | None = None,
+    event_type: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[Event]:
+    search_term = q.strip().lower() if q else None
+    statement = select(Event)
+
+    if source:
+        statement = statement.where(Event.source == source.strip())
+
+    if event_type:
+        statement = statement.where(Event.event_type == event_type.strip())
+
+    if search_term:
+        pattern = f"%{_escape_like(search_term)}%"
+        statement = statement.where(
+            or_(
+                func.lower(Event.title).like(pattern, escape="\\"),
+                func.lower(Event.content).like(pattern, escape="\\"),
+            )
+        )
+
     statement = (
-        select(Event)
-        .order_by(Event.created_at.desc(), Event.id.desc())
+        statement.order_by(Event.created_at.desc(), Event.id.desc())
         .offset(offset)
         .limit(limit)
     )
+
     return list(db.scalars(statement).all())
 
 

@@ -36,6 +36,69 @@ def test_list_events_returns_newest_first(client):
     assert [event["id"] for event in events] == [second["id"], first["id"]]
 
 
+def test_list_events_filters_by_source(client):
+    client.post("/events", json=event_payload(source="clipboard", title="Clipboard event"))
+    file_event = client.post(
+        "/events",
+        json=event_payload(source="filesystem", title="File event"),
+    ).json()
+
+    response = client.get("/events?source=filesystem")
+
+    assert response.status_code == 200
+    assert [event["id"] for event in response.json()] == [file_event["id"]]
+
+
+def test_list_events_filters_by_event_type(client):
+    client.post("/events", json=event_payload(event_type="snippet", title="Snippet event"))
+    command_event = client.post(
+        "/events",
+        json=event_payload(event_type="command", title="Command event"),
+    ).json()
+
+    response = client.get("/events?event_type=command")
+
+    assert response.status_code == 200
+    assert [event["id"] for event in response.json()] == [command_event["id"]]
+
+
+def test_list_events_searches_title_and_content(client):
+    title_match = client.post("/events", json=event_payload(title="Copied migration plan")).json()
+    content_match = client.post(
+        "/events",
+        json=event_payload(title="Shell note", content="remember to run alembic upgrade head"),
+    ).json()
+    client.post("/events", json=event_payload(title="Unrelated event", content="npm run build"))
+
+    response = client.get("/events?q=migration")
+    content_response = client.get("/events?q=ALEMBIC")
+
+    assert response.status_code == 200
+    assert [event["id"] for event in response.json()] == [title_match["id"]]
+    assert content_response.status_code == 200
+    assert [event["id"] for event in content_response.json()] == [content_match["id"]]
+
+
+def test_list_events_combines_search_and_filters(client):
+    matching_event = client.post(
+        "/events",
+        json=event_payload(
+            source="filesystem",
+            event_type="file_change",
+            title="Updated FastAPI route",
+        ),
+    ).json()
+    client.post(
+        "/events",
+        json=event_payload(source="clipboard", event_type="snippet", title="Updated FastAPI route"),
+    )
+
+    response = client.get("/events?q=fastapi&source=filesystem&event_type=file_change")
+
+    assert response.status_code == 200
+    assert [event["id"] for event in response.json()] == [matching_event["id"]]
+
+
 def test_get_event_by_id(client):
     created = client.post("/events", json=event_payload()).json()
 
@@ -81,3 +144,13 @@ def test_list_events_validates_pagination(client):
 
     assert limit_response.status_code == 422
     assert offset_response.status_code == 422
+
+
+def test_list_events_validates_search_filters(client):
+    q_response = client.get("/events?q=")
+    source_response = client.get("/events?source=")
+    event_type_response = client.get("/events?event_type=")
+
+    assert q_response.status_code == 422
+    assert source_response.status_code == 422
+    assert event_type_response.status_code == 422
