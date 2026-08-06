@@ -18,12 +18,12 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Event detail and timeline views.
 - Frontend API client tests.
 - Frontend component tests.
+- Browser smoke test.
 - Demo seed command.
 - Backend tests for health, events, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
 
 ## Later
 
-- Add browser tests.
 - Add semantic retrieval.
 - Add desktop packaging with Tauri.

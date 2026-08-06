@@ -16,12 +16,12 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - Dashboard UI connected to the event API, including event detail and timeline views.
 - Backend pytest coverage for health, event lifecycle, validation, search, and filters.
 - Frontend Vitest coverage for the event API client and dashboard rendering.
+- Playwright browser smoke test for the dashboard.
 - GitHub Actions workflows for backend tests and frontend validation.
 - Docker Compose file for local development.
 
 ## Planned Work
 
-- Browser tests.
 - Semantic retrieval.
 - Desktop packaging with Tauri.
 
@@ -112,6 +112,7 @@ Run frontend checks:
 cd apps/web
 npm run lint
 npm run test
+npm run test:e2e
 npm run build
 ```
 
@@ -178,6 +179,7 @@ tests/              Backend tests
 - [x] Timeline and detail views
 - [x] Frontend API client tests
 - [x] Frontend component tests
+- [x] Browser smoke test
 - [x] Demo seed command
 - [ ] Semantic retrieval
 - [ ] Desktop packaging
