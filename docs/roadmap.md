@@ -17,13 +17,10 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Dashboard integration with the event API.
 - Event detail and timeline views.
 - Frontend API client tests.
+- Frontend component tests.
 - Demo seed command.
 - Backend tests for health, events, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
-
-## Next
-
-- Add frontend component tests.
 
 ## Later
 
