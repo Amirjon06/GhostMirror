@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Database,
+  Eye,
   FileSearch,
   FolderGit2,
   Inbox,
@@ -34,7 +35,7 @@ const navItems = [
 ]
 
 const sourceOptions = ['manual', 'clipboard', 'filesystem', 'git', 'editor']
-const eventTypeOptions = ['note', 'snippet', 'file_change', 'command', 'commit']
+const eventTypeOptions = ['note', 'snippet', 'file_snapshot', 'file_change', 'command', 'commit']
 const emptyEvents: EventRecord[] = []
 
 function formatDate(value: string) {
@@ -64,6 +65,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
 
   const eventListParams = useMemo(
     () => ({
@@ -81,7 +83,8 @@ function App() {
 
   const createMutation = useMutation({
     mutationFn: createEvent,
-    onSuccess: async () => {
+    onSuccess: async (event) => {
+      setSelectedEventId(event.id)
       setTitle('')
       setContent('')
       await queryClient.invalidateQueries({ queryKey: ['events'] })
@@ -97,6 +100,7 @@ function App() {
 
   const events = eventsQuery.data ?? emptyEvents
   const activeSources = useMemo(() => new Set(events.map((event) => event.source)).size, [events])
+  const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
   const hasEvents = events.length > 0
   const hasActiveSearch = Boolean(eventListParams.q || eventListParams.source || eventListParams.eventType)
   const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
@@ -104,7 +108,7 @@ function App() {
   const stats = [
     { label: 'Events shown', value: String(events.length), detail: 'Matching the current event query' },
     { label: 'Sources in view', value: String(activeSources), detail: 'Based on the current result set' },
-    { label: 'Search mode', value: 'Keyword', detail: 'Filtering stored events through the local API' },
+    { label: 'Search mode', value: 'FTS5', detail: 'Indexed title and content search' },
   ]
 
   function handleCreateEvent(event: React.FormEvent<HTMLFormElement>) {
@@ -138,7 +142,7 @@ function App() {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">GhostMirror</p>
-              <p className="text-xs text-slate-400">Developer intelligence</p>
+              <p className="text-xs text-slate-400">Activity dashboard</p>
             </div>
           </div>
 
@@ -322,7 +326,14 @@ function App() {
                   ) : hasEvents ? (
                     <div className="divide-y divide-white/10">
                       {events.map((event) => (
-                        <article key={event.id} className="p-5 transition hover:bg-white/[0.03]">
+                        <article
+                          key={event.id}
+                          className={`p-5 transition ${
+                            selectedEvent?.id === event.id
+                              ? 'bg-cyan-300/[0.06] ring-1 ring-inset ring-cyan-300/20'
+                              : 'hover:bg-white/[0.03]'
+                          }`}
+                        >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -333,20 +344,35 @@ function App() {
                                 <span>{formatDate(event.created_at)}</span>
                               </div>
                               <h3 className="mt-3 text-sm font-semibold text-white">{event.title}</h3>
-                              <p className="mt-2 text-sm leading-6 text-slate-400">{event.content}</p>
+                              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-400">{event.content}</p>
                               {formatMetadata(event.metadata) ? (
                                 <p className="mt-2 text-xs text-slate-500">{formatMetadata(event.metadata)}</p>
                               ) : null}
                             </div>
-                            <button
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
-                              type="button"
-                              aria-label={`Delete ${event.title}`}
-                              onClick={() => deleteMutation.mutate(event.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 size={16} aria-hidden="true" />
-                            </button>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                                type="button"
+                                aria-label={`View ${event.title}`}
+                                onClick={() => setSelectedEventId(event.id)}
+                              >
+                                <Eye size={16} aria-hidden="true" />
+                              </button>
+                              <button
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                type="button"
+                                aria-label={`Delete ${event.title}`}
+                                onClick={() => {
+                                  if (selectedEventId === event.id) {
+                                    setSelectedEventId(null)
+                                  }
+                                  deleteMutation.mutate(event.id)
+                                }}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                              </button>
+                            </div>
                           </div>
                         </article>
                       ))}
@@ -368,6 +394,58 @@ function App() {
               </section>
 
               <aside className="space-y-6">
+                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+                  <div className="flex items-center gap-2">
+                    <Eye size={18} className="text-cyan-200" aria-hidden="true" />
+                    <h2 className="text-base font-semibold text-white">Event detail</h2>
+                  </div>
+
+                  {selectedEvent ? (
+                    <div className="mt-5 space-y-5">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                          <span className="rounded bg-cyan-300/10 px-2 py-1 text-cyan-100">
+                            {selectedEvent.source}
+                          </span>
+                          <span>{selectedEvent.event_type}</span>
+                          <span>{formatDate(selectedEvent.created_at)}</span>
+                        </div>
+                        <h3 className="mt-3 text-sm font-semibold leading-6 text-white">{selectedEvent.title}</h3>
+                      </div>
+
+                      <div className="max-h-72 overflow-auto rounded-lg border border-white/10 bg-[#0d1017] p-3">
+                        <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
+                          {selectedEvent.content}
+                        </pre>
+                      </div>
+
+                      <dl className="grid gap-3 text-sm">
+                        <div className="flex items-center justify-between gap-4">
+                          <dt className="text-slate-500">Created</dt>
+                          <dd className="text-right text-slate-300">{formatDate(selectedEvent.created_at)}</dd>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                          <dt className="text-slate-500">Updated</dt>
+                          <dd className="text-right text-slate-300">{formatDate(selectedEvent.updated_at)}</dd>
+                        </div>
+                      </dl>
+
+                      {formatMetadata(selectedEvent.metadata) ? (
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Metadata</p>
+                          <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-300">
+                            {formatMetadata(selectedEvent.metadata)}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                      Select an event to inspect its content and metadata.
+                    </p>
+                  )}
+                </div>
+
                 <form className="rounded-lg border border-white/10 bg-[#111620] p-5" onSubmit={handleCreateEvent}>
                   <div className="flex items-center gap-2">
                     <Plus size={18} className="text-cyan-200" aria-hidden="true" />
@@ -472,12 +550,31 @@ function App() {
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
                   <div className="flex items-center gap-2">
                     <Clock3 size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Next capability</h2>
+                    <h2 className="text-base font-semibold text-white">Timeline</h2>
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-400">
-                    Full-text search will index stored event titles and content after the dashboard
-                    event flow is stable.
-                  </p>
+                  {hasEvents ? (
+                    <ol className="mt-5 space-y-4">
+                      {events.slice(0, 5).map((event) => (
+                        <li key={event.id} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-3">
+                          <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-cyan-200" />
+                          <button
+                            className="min-w-0 text-left"
+                            type="button"
+                            onClick={() => setSelectedEventId(event.id)}
+                          >
+                            <span className="block truncate text-sm font-medium text-white">{event.title}</span>
+                            <span className="mt-1 block truncate text-xs text-slate-500">
+                              {event.source} · {event.event_type} · {formatDate(event.created_at)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                      Timeline entries appear after events are stored.
+                    </p>
+                  )}
                 </div>
 
                 {deleteMutation.isSuccess ? (

@@ -6,7 +6,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 
 | Component | Path | Responsibility |
 | --------- | ---- | -------------- |
-| Web app | `apps/web` | React dashboard for viewing and managing events. |
+| Web app | `apps/web` | React dashboard for viewing, inspecting, and managing events. |
 | API routes | `backend/app/api` | FastAPI route handlers. |
 | Core settings | `backend/app/core` | Application settings and environment configuration. |
 | Database session | `backend/app/db` | SQLAlchemy engine, session factory, and dependency wiring. |
