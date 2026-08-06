@@ -16,6 +16,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 | CLI commands | `backend/app/cli` | Local command entry points for ingestion tasks. |
 | Migrations | `backend/alembic` | Database schema migrations. |
 | Tests | `tests` | Backend API tests. |
+| Web tests | `apps/web/src` | Frontend tests located next to the code under test. |
 
 ## Runtime Flow
 
