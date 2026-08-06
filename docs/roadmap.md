@@ -13,13 +13,13 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Event keyword search and filters.
 - SQLite FTS5 indexing for event search.
 - Clipboard ingestion command.
+- Filesystem ingestion command.
 - Dashboard integration with the event API.
 - Backend tests for health, events, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
 
 ## Next
 
-- Add filesystem ingestion.
 - Add event detail and timeline views.
 - Add frontend component tests.
 

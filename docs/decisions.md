@@ -38,4 +38,4 @@ Tauri packaging is planned, but the current application runs as a web app plus l
 
 Status: accepted
 
-Clipboard ingestion starts as a backend CLI command. This keeps capture behavior testable before adding desktop process management.
+Clipboard and filesystem ingestion start as backend CLI commands. This keeps capture behavior testable before adding desktop process management.

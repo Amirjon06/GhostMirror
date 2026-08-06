@@ -59,3 +59,12 @@ python -m app.cli.clipboard
 The command polls the system clipboard and stores changed text values as `clipboard` source events with the `snippet` event type.
 
 Use `--once` to capture the current clipboard value and exit.
+
+Filesystem ingestion runs as a local command:
+
+```bash
+cd backend
+python -m app.cli.filesystem /path/to/workspace --once
+```
+
+The command scans text files and stores changed file snapshots as `filesystem` source events with the `file_snapshot` event type. Hidden files and directories are skipped unless `--include-hidden` is provided.
