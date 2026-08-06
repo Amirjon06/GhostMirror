@@ -1,66 +1,49 @@
 # GhostMirror
 
-GhostMirror is a local-first developer activity dashboard for storing structured events and making local workflow history easier to inspect.
+GhostMirror is a local development activity dashboard. It stores structured events in SQLite and provides a FastAPI API with a React dashboard for viewing, creating, searching, filtering, and deleting events.
 
-The current application includes a React dashboard connected to a FastAPI backend, SQLite event persistence, and backend tests for the event API. Clipboard monitoring, filesystem ingestion, full-text search, richer timeline views, semantic retrieval, and desktop distribution are planned.
+## Current Functionality
 
-## Capabilities
-
-Available now:
-
-- React + TypeScript dashboard in `apps/web`.
+- React and TypeScript web app in `apps/web`.
 - FastAPI service in `backend`.
-- `GET /health` endpoint for runtime checks.
-- SQLite-backed event persistence.
-- Event API for create, list, read, and delete operations.
-- Event keyword search and filtering by source or event type.
-- Dashboard UI for listing, searching, filtering, creating, refreshing, and deleting events.
-- SQLAlchemy model and Alembic migration for the `events` table.
-- Backend tests for health and event API behavior.
+- SQLite event storage through SQLAlchemy.
+- Alembic migration for the `events` table.
+- Event API for create, list, read, delete, keyword search, source filtering, and event type filtering.
+- Dashboard UI connected to the event API.
+- Backend pytest coverage for health, event lifecycle, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
-- Docker Compose configuration for local development.
+- Docker Compose file for local development.
 
-Planned:
+## Planned Work
 
 - Clipboard event ingestion.
 - Filesystem event ingestion.
-- SQLite FTS5 indexing for larger local event history.
-- Activity timeline and event detail views backed by persisted events.
-- Semantic retrieval after keyword search is stable.
-- Frontend component and browser tests.
-- Desktop distribution with Tauri.
-
-## Tech Stack
-
-| Layer | Tech |
-|-------|------|
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| Backend | Python, FastAPI, Pydantic |
-| Database | SQLite, SQLAlchemy, Alembic |
-| Testing | pytest |
+- SQLite FTS5 indexing.
+- Event detail and timeline views.
+- Frontend component tests.
+- Browser tests.
+- Semantic retrieval.
+- Desktop packaging with Tauri.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  subgraph LocalMachine["Local developer machine"]
-    Clipboard["Clipboard monitor\nplanned"]
-    Filesystem["Filesystem monitor\nplanned"]
-    Web["React dashboard\napps/web"]
-    API["FastAPI service\nbackend/app"]
-    SQLite["SQLite database"]
-    FTS["SQLite FTS5 index\nplanned"]
-  end
+- `apps/web` contains the React dashboard. It calls the FastAPI service over HTTP.
+- `backend/app` contains the API routes, settings, database session, SQLAlchemy models, schemas, and services.
+- `backend/alembic` contains database migrations.
+- `tests` contains backend API tests.
+- SQLite is the current database.
 
-  Clipboard -.->|planned events| API
-  Filesystem -.->|planned events| API
-  Web -->|HTTP API| API
-  API -->|event persistence| SQLite
-  SQLite -.->|planned keyword index| FTS
-  API -->|events| Web
-```
+## Tech Stack
 
-## Running Locally
+| Area | Tools |
+| ---- | ----- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, TanStack Query |
+| Backend | Python, FastAPI, Pydantic |
+| Database | SQLite, SQLAlchemy, Alembic |
+| Testing | pytest |
+| CI | GitHub Actions |
+
+## Local Development
 
 Requirements:
 
@@ -68,7 +51,7 @@ Requirements:
 - npm
 - Python 3.11+
 
-Frontend:
+Install and run the frontend:
 
 ```bash
 cd apps/web
@@ -76,17 +59,9 @@ npm install
 npm run dev
 ```
 
-The frontend calls `http://127.0.0.1:8000` by default. Set `VITE_API_BASE_URL` to use a different API URL.
+The frontend uses `http://127.0.0.1:8000` by default. Set `VITE_API_BASE_URL` to use a different backend URL.
 
-Frontend checks:
-
-```bash
-cd apps/web
-npm run lint
-npm run build
-```
-
-Backend:
+Install and run the backend:
 
 ```bash
 python3 -m venv .venv
@@ -97,54 +72,72 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Backend tests:
+Run backend tests:
 
 ```bash
 pytest
 ```
 
-Health check:
+Run frontend checks:
 
 ```bash
-curl http://127.0.0.1:8000/health
+cd apps/web
+npm run lint
+npm run build
 ```
 
-Create an event:
+## API
 
-```bash
-curl -X POST http://127.0.0.1:8000/events \
-  -H "Content-Type: application/json" \
-  -d '{"source":"clipboard","event_type":"snippet","title":"Copied SQL query","content":"select * from events;","metadata":{"language":"sql"}}'
+Health:
+
+```text
+GET /health
 ```
 
-List events:
+Events:
 
-```bash
-curl http://127.0.0.1:8000/events
+```text
+POST /events
+GET /events
+GET /events/{id}
+DELETE /events/{id}
 ```
 
-Search and filter events:
+Supported event list query parameters:
+
+```text
+q
+source
+event_type
+limit
+offset
+```
+
+Example:
 
 ```bash
 curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
 ```
 
-## Project Structure
+## Repository Layout
 
 ```text
-apps/web/     - React dashboard
-backend/      - FastAPI and SQLite event API
-docs/         - architecture notes and technical decisions
-tests/        - backend test suite
+.github/workflows/  GitHub Actions workflows
+apps/web/           React dashboard
+backend/            FastAPI application and migrations
+docs/               Project documentation
+tests/              Backend tests
 ```
 
 ## Roadmap
 
 - [x] Application foundation
 - [x] Local event persistence
-- [x] Backend event API tests
-- [ ] Filesystem and clipboard ingestion
-- [ ] Full-text search
-- [ ] Activity timeline
+- [x] Event API tests
+- [x] Dashboard API integration
+- [x] Backend and frontend CI
+- [ ] Clipboard and filesystem ingestion
+- [ ] SQLite FTS5 search
+- [ ] Timeline and detail views
 - [ ] Semantic retrieval
-- [ ] Desktop distribution
+- [ ] Desktop packaging
