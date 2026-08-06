@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import DATA_DIR, settings
+from app.db.search import create_event_search_index
 
 
 class Base(DeclarativeBase):
@@ -23,6 +24,7 @@ def init_db() -> None:
     from app.models import event  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    create_event_search_index(engine)
 
 
 def get_db() -> Generator[Session]:

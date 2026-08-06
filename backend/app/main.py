@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        description="Local-first developer intelligence API for GhostMirror.",
+        description="Local development activity API for GhostMirror.",
         lifespan=lifespan,
     )
     app.add_middleware(

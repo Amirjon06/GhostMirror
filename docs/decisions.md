@@ -20,13 +20,13 @@ Status: accepted
 
 Route handlers validate HTTP input and map responses. Database operations live in service functions so persistence behavior can be tested and changed without growing route handlers.
 
-## Start Search With Keyword Matching
+## Use SQLite FTS5 For Event Search
 
 Status: accepted
 
-The current event list endpoint supports keyword matching with SQL `LIKE` expressions and exact filters for source and event type.
+The event list endpoint uses SQLite FTS5 for keyword search over event title and content. Source and event type filters remain exact SQL filters.
 
-SQLite FTS5 is planned as a later change when the event volume and query behavior justify an index.
+The service keeps a `LIKE` fallback for databases where the FTS table is not available.
 
 ## Keep Desktop Packaging Out Of The Initial Runtime
 

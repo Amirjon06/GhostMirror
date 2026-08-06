@@ -1,4 +1,7 @@
-from sqlalchemy import func, or_, select
+import re
+
+from sqlalchemy import case, func, or_, select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
@@ -7,6 +10,30 @@ from app.schemas.event import EventCreate
 
 def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _build_fts_query(value: str) -> str | None:
+    tokens = re.findall(r"\w+", value)
+    if not tokens:
+        return None
+
+    return " ".join(f'"{token}"' for token in tokens)
+
+
+def _has_event_search_index(db: Session) -> bool:
+    if db.bind is None or db.bind.dialect.name != "sqlite":
+        return False
+
+    result = db.execute(
+        text(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'events_fts'
+            """
+        )
+    ).scalar_one_or_none()
+    return result is not None
 
 
 def create_event(db: Session, event_in: EventCreate) -> Event:
@@ -32,6 +59,18 @@ def list_events(
     offset: int = 0,
 ) -> list[Event]:
     search_term = q.strip().lower() if q else None
+    if search_term and _has_event_search_index(db):
+        fts_events = _list_events_with_fts(
+            db,
+            search_term=search_term,
+            source=source,
+            event_type=event_type,
+            limit=limit,
+            offset=offset,
+        )
+        if fts_events is not None:
+            return fts_events
+
     statement = select(Event)
 
     if source:
@@ -56,6 +95,58 @@ def list_events(
     )
 
     return list(db.scalars(statement).all())
+
+
+def _list_events_with_fts(
+    db: Session,
+    search_term: str,
+    source: str | None,
+    event_type: str | None,
+    limit: int,
+    offset: int,
+) -> list[Event] | None:
+    fts_query = _build_fts_query(search_term)
+    if fts_query is None:
+        return None
+
+    conditions = ["events_fts MATCH :fts_query"]
+    params: dict[str, object] = {
+        "fts_query": fts_query,
+        "limit": limit,
+        "offset": offset,
+    }
+
+    if source:
+        conditions.append("events.source = :source")
+        params["source"] = source.strip()
+
+    if event_type:
+        conditions.append("events.event_type = :event_type")
+        params["event_type"] = event_type.strip()
+
+    statement = text(
+        f"""
+        SELECT events.id
+        FROM events
+        JOIN events_fts ON events_fts.rowid = events.id
+        WHERE {" AND ".join(conditions)}
+        ORDER BY events.created_at DESC, events.id DESC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+
+    try:
+        event_ids = list(db.execute(statement, params).scalars().all())
+    except SQLAlchemyError:
+        db.rollback()
+        return None
+
+    if not event_ids:
+        return []
+
+    ordering = case({event_id: index for index, event_id in enumerate(event_ids)}, value=Event.id)
+    events = db.scalars(select(Event).where(Event.id.in_(event_ids)).order_by(ordering)).all()
+    return list(events)
 
 
 def get_event(db: Session, event_id: int) -> Event | None:

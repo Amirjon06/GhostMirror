@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.search import create_event_search_index
 from app.db.session import Base, get_db
 from app.main import app
 
@@ -16,6 +17,7 @@ def client(tmp_path) -> Generator[TestClient]:
     testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=engine)
+    create_event_search_index(engine)
 
     def override_get_db() -> Generator[Session]:
         db = testing_session_local()

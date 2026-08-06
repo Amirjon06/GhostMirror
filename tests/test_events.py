@@ -99,6 +99,20 @@ def test_list_events_combines_search_and_filters(client):
     assert [event["id"] for event in response.json()] == [matching_event["id"]]
 
 
+def test_deleted_event_is_removed_from_search_results(client):
+    created = client.post("/events", json=event_payload(title="Temporary migration note")).json()
+
+    before_delete = client.get("/events?q=temporary")
+    delete_response = client.delete(f"/events/{created['id']}")
+    after_delete = client.get("/events?q=temporary")
+
+    assert before_delete.status_code == 200
+    assert [event["id"] for event in before_delete.json()] == [created["id"]]
+    assert delete_response.status_code == 204
+    assert after_delete.status_code == 200
+    assert after_delete.json() == []
+
+
 def test_get_event_by_id(client):
     created = client.post("/events", json=event_payload()).json()
 

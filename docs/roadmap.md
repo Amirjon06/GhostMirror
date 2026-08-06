@@ -11,6 +11,7 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Alembic migration for the `events` table.
 - Event create, list, read, and delete API.
 - Event keyword search and filters.
+- SQLite FTS5 indexing for event search.
 - Dashboard integration with the event API.
 - Backend tests for health, events, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
@@ -24,7 +25,6 @@ This roadmap describes planned technical work. It does not imply release dates.
 
 ## Later
 
-- Add SQLite FTS5 indexing.
 - Add browser tests.
 - Add semantic retrieval.
 - Add desktop packaging with Tauri.

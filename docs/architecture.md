@@ -42,6 +42,6 @@ Alembic is used for migrations. The application also calls `Base.metadata.create
 
 ## Search
 
-The current search implementation uses case-insensitive keyword matching against event titles and content. Source and event type filters are exact matches.
+The current search implementation uses a SQLite FTS5 virtual table for event titles and content. Database triggers keep the FTS table in sync when events are inserted, updated, or deleted.
 
-SQLite FTS5 indexing is planned for larger event histories.
+Source and event type filters are exact matches. If the FTS table is not available, the backend falls back to case-insensitive keyword matching with SQL `LIKE`.

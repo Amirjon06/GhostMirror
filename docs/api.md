@@ -70,13 +70,15 @@ Query parameters:
 
 | Parameter | Type | Default | Notes |
 | --------- | ---- | ------- | ----- |
-| `q` | string | none | Case-insensitive keyword match against title and content. |
+| `q` | string | none | Keyword match against title and content. |
 | `source` | string | none | Exact source filter. |
 | `event_type` | string | none | Exact event type filter. |
 | `limit` | integer | 50 | Minimum 1, maximum 100. |
 | `offset` | integer | 0 | Minimum 0. |
 
 Events are returned newest first.
+
+Search uses SQLite FTS5 when the search index is available. The backend falls back to case-insensitive `LIKE` matching when the FTS table is not present.
 
 Example:
 

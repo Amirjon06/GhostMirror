@@ -8,6 +8,7 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - FastAPI service in `backend`.
 - SQLite event storage through SQLAlchemy.
 - Alembic migration for the `events` table.
+- SQLite FTS5 index for event title and content search.
 - Event API for create, list, read, delete, keyword search, source filtering, and event type filtering.
 - Dashboard UI connected to the event API.
 - Backend pytest coverage for health, event lifecycle, validation, search, and filters.
@@ -18,7 +19,6 @@ GhostMirror is a local development activity dashboard. It stores structured even
 
 - Clipboard event ingestion.
 - Filesystem event ingestion.
-- SQLite FTS5 indexing.
 - Event detail and timeline views.
 - Frontend component tests.
 - Browser tests.
@@ -143,8 +143,8 @@ tests/              Backend tests
 - [x] Event API tests
 - [x] Dashboard API integration
 - [x] Backend and frontend CI
+- [x] SQLite FTS5 search
 - [ ] Clipboard and filesystem ingestion
-- [ ] SQLite FTS5 search
 - [ ] Timeline and detail views
 - [ ] Semantic retrieval
 - [ ] Desktop packaging
