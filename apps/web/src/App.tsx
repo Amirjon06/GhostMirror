@@ -7,7 +7,6 @@ import {
   BrainCircuit,
   CheckCircle2,
   Clock3,
-  Command,
   Database,
   FileSearch,
   FolderGit2,
@@ -20,6 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react'
 
 import { createEvent, deleteEvent, listEvents } from './lib/api'
@@ -61,10 +61,22 @@ function App() {
   const [eventType, setEventType] = useState('note')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
+  const [eventTypeFilter, setEventTypeFilter] = useState('')
+
+  const eventListParams = useMemo(
+    () => ({
+      q: searchTerm.trim() || undefined,
+      source: sourceFilter || undefined,
+      eventType: eventTypeFilter || undefined,
+    }),
+    [eventTypeFilter, searchTerm, sourceFilter],
+  )
 
   const eventsQuery = useQuery({
-    queryKey: ['events'],
-    queryFn: listEvents,
+    queryKey: ['events', eventListParams],
+    queryFn: () => listEvents(eventListParams),
   })
 
   const createMutation = useMutation({
@@ -86,12 +98,13 @@ function App() {
   const events = eventsQuery.data ?? emptyEvents
   const activeSources = useMemo(() => new Set(events.map((event) => event.source)).size, [events])
   const hasEvents = events.length > 0
+  const hasActiveSearch = Boolean(eventListParams.q || eventListParams.source || eventListParams.eventType)
   const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
 
   const stats = [
-    { label: 'Events indexed', value: String(events.length), detail: 'Loaded from the local event API' },
-    { label: 'Active sources', value: String(activeSources), detail: 'Based on stored event sources' },
-    { label: 'Search mode', value: 'Pending', detail: 'Keyword indexing is on the roadmap' },
+    { label: 'Events shown', value: String(events.length), detail: 'Matching the current event query' },
+    { label: 'Sources in view', value: String(activeSources), detail: 'Based on the current result set' },
+    { label: 'Search mode', value: 'Keyword', detail: 'Filtering stored events through the local API' },
   ]
 
   function handleCreateEvent(event: React.FormEvent<HTMLFormElement>) {
@@ -107,6 +120,12 @@ function App() {
       content: content.trim(),
       metadata: {},
     })
+  }
+
+  function clearSearchFilters() {
+    setSearchTerm('')
+    setSourceFilter('')
+    setEventTypeFilter('')
   }
 
   return (
@@ -154,13 +173,16 @@ function App() {
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-10 border-b border-white/10 bg-[#090b10]/80 px-4 py-4 backdrop-blur md:px-8">
             <div className="flex items-center gap-4">
-              <div className="flex h-10 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-400">
+              <label className="flex h-10 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-400 transition focus-within:border-cyan-300/40">
                 <Search size={18} aria-hidden="true" />
-                <span className="text-sm">Search events, snippets, files...</span>
-                <kbd className="ml-auto hidden items-center gap-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-500 sm:inline-flex">
-                  <Command size={12} aria-hidden="true" /> K
-                </kbd>
-              </div>
+                <span className="sr-only">Search events</span>
+                <input
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search event titles and content..."
+                />
+              </label>
               <button
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/10"
                 type="button"
@@ -216,22 +238,70 @@ function App() {
                           ? 'The event API is unavailable'
                           : hasEvents
                             ? `${events.length} stored event${events.length === 1 ? '' : 's'}`
-                            : 'No event source is connected'}
+                            : hasActiveSearch
+                              ? 'No events match the current search'
+                              : 'No event source is connected'}
                       </p>
                     </div>
-                    <button
-                      className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                      type="button"
-                      onClick={() => void eventsQuery.refetch()}
-                      disabled={eventsQuery.isFetching}
-                    >
-                      <RefreshCw
-                        size={16}
-                        className={eventsQuery.isFetching ? 'animate-spin' : ''}
-                        aria-hidden="true"
-                      />
-                      Refresh
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {hasActiveSearch ? (
+                        <button
+                          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+                          type="button"
+                          onClick={clearSearchFilters}
+                        >
+                          <X size={16} aria-hidden="true" />
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        onClick={() => void eventsQuery.refetch()}
+                        disabled={eventsQuery.isFetching}
+                      >
+                        <RefreshCw
+                          size={16}
+                          className={eventsQuery.isFetching ? 'animate-spin' : ''}
+                          aria-hidden="true"
+                        />
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 border-b border-white/10 px-5 py-4 md:grid-cols-2">
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Source
+                      <select
+                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                        value={sourceFilter}
+                        onChange={(event) => setSourceFilter(event.target.value)}
+                      >
+                        <option value="">All sources</option>
+                        {sourceOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm text-slate-300">
+                      Type
+                      <select
+                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                        value={eventTypeFilter}
+                        onChange={(event) => setEventTypeFilter(event.target.value)}
+                      >
+                        <option value="">All types</option>
+                        {eventTypeOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
 
                   {eventsQuery.isLoading ? (
@@ -288,7 +358,9 @@ function App() {
                       </div>
                       <h3 className="mt-4 text-sm font-semibold text-white">No events captured yet</h3>
                       <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                        Create a manual event to verify the local event API and database path.
+                        {hasActiveSearch
+                          ? 'Clear the search or adjust filters to inspect the full event history.'
+                          : 'Create a manual event to verify the local event API and database path.'}
                       </p>
                     </div>
                   )}

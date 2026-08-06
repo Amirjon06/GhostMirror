@@ -1,4 +1,4 @@
-import type { EventCreatePayload, EventRecord } from './types'
+import type { EventCreatePayload, EventListParams, EventRecord } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
@@ -23,8 +23,27 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function listEvents(): Promise<EventRecord[]> {
-  return request<EventRecord[]>('/events')
+function buildEventQuery(params: EventListParams = {}) {
+  const searchParams = new URLSearchParams()
+
+  if (params.q) {
+    searchParams.set('q', params.q)
+  }
+
+  if (params.source) {
+    searchParams.set('source', params.source)
+  }
+
+  if (params.eventType) {
+    searchParams.set('event_type', params.eventType)
+  }
+
+  const query = searchParams.toString()
+  return query ? `/events?${query}` : '/events'
+}
+
+export function listEvents(params?: EventListParams): Promise<EventRecord[]> {
+  return request<EventRecord[]>(buildEventQuery(params))
 }
 
 export function createEvent(payload: EventCreatePayload): Promise<EventRecord> {

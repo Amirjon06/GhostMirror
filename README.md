@@ -14,7 +14,7 @@ Available now:
 - SQLite-backed event persistence.
 - Event API for create, list, read, and delete operations.
 - Event keyword search and filtering by source or event type.
-- Dashboard UI for listing, creating, refreshing, and deleting events.
+- Dashboard UI for listing, searching, filtering, creating, refreshing, and deleting events.
 - SQLAlchemy model and Alembic migration for the `events` table.
 - Backend tests for health and event API behavior.
 - Docker Compose configuration for local development.
