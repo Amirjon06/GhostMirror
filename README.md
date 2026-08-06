@@ -17,6 +17,7 @@ Available now:
 - Dashboard UI for listing, searching, filtering, creating, refreshing, and deleting events.
 - SQLAlchemy model and Alembic migration for the `events` table.
 - Backend tests for health and event API behavior.
+- GitHub Actions workflows for backend tests and frontend validation.
 - Docker Compose configuration for local development.
 
 Planned:
@@ -26,7 +27,7 @@ Planned:
 - SQLite FTS5 indexing for larger local event history.
 - Activity timeline and event detail views backed by persisted events.
 - Semantic retrieval after keyword search is stable.
-- Frontend tests and CI validation.
+- Frontend component and browser tests.
 - Desktop distribution with Tauri.
 
 ## Tech Stack
