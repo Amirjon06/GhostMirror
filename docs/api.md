@@ -1,0 +1,107 @@
+# API
+
+The backend API is implemented with FastAPI under `backend/app`.
+
+## Health
+
+```text
+GET /health
+```
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "service": "ghostmirror-api"
+}
+```
+
+## Events
+
+Event fields:
+
+| Field | Type | Required | Notes |
+| ----- | ---- | -------- | ----- |
+| `id` | integer | response only | Database primary key. |
+| `source` | string | yes | Maximum length is 80 characters. |
+| `event_type` | string | yes | Maximum length is 80 characters. |
+| `title` | string | yes | Maximum length is 200 characters. |
+| `content` | string | yes | Event body. |
+| `metadata` | object | no | Defaults to an empty object. |
+| `created_at` | datetime | response only | Set by the backend. |
+| `updated_at` | datetime | response only | Set by the backend. |
+
+Blank strings are rejected for required string fields.
+
+### Create Event
+
+```text
+POST /events
+```
+
+Request:
+
+```json
+{
+  "source": "clipboard",
+  "event_type": "snippet",
+  "title": "Copied SQL query",
+  "content": "select * from events;",
+  "metadata": {
+    "language": "sql"
+  }
+}
+```
+
+Successful response status:
+
+```text
+201 Created
+```
+
+### List Events
+
+```text
+GET /events
+```
+
+Query parameters:
+
+| Parameter | Type | Default | Notes |
+| --------- | ---- | ------- | ----- |
+| `q` | string | none | Case-insensitive keyword match against title and content. |
+| `source` | string | none | Exact source filter. |
+| `event_type` | string | none | Exact event type filter. |
+| `limit` | integer | 50 | Minimum 1, maximum 100. |
+| `offset` | integer | 0 | Minimum 0. |
+
+Events are returned newest first.
+
+Example:
+
+```bash
+curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
+```
+
+### Get Event
+
+```text
+GET /events/{id}
+```
+
+Returns `404 Not Found` when the event does not exist.
+
+### Delete Event
+
+```text
+DELETE /events/{id}
+```
+
+Successful response status:
+
+```text
+204 No Content
+```
+
+Returns `404 Not Found` when the event does not exist.

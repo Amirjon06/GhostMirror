@@ -129,6 +129,13 @@ docs/               Project documentation
 tests/              Backend tests
 ```
 
+## Documentation
+
+- [API](docs/api.md)
+- [Architecture](docs/architecture.md)
+- [Decisions](docs/decisions.md)
+- [Roadmap](docs/roadmap.md)
+
 ## Roadmap
 
 - [x] Application foundation
