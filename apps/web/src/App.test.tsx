@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { createEvent, deleteEvent, getEventSummary, listEvents } from './lib/api'
+import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './lib/api'
 import type { EventRecord, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
@@ -14,6 +14,7 @@ vi.mock('./lib/api', () => ({
   deleteEvent: vi.fn(),
   getEventSummary: vi.fn(),
   listEvents: vi.fn(),
+  updateEvent: vi.fn(),
 }))
 
 const events: EventRecord[] = [
@@ -73,6 +74,7 @@ describe('dashboard', () => {
     vi.mocked(deleteEvent).mockReset()
     vi.mocked(getEventSummary).mockReset()
     vi.mocked(listEvents).mockReset()
+    vi.mocked(updateEvent).mockReset()
     vi.mocked(getEventSummary).mockResolvedValue(summary)
   })
 
@@ -164,6 +166,38 @@ describe('dashboard', () => {
         },
         expect.any(Object),
       )
+    })
+  })
+
+  it('updates the selected event from the detail panel', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+    vi.mocked(updateEvent).mockResolvedValue({
+      ...events[0],
+      title: 'Updated SQL query',
+      content: 'select id from events;',
+      updated_at: '2026-08-06T12:20:00Z',
+    })
+
+    renderDashboard()
+
+    await screen.findAllByText('Copied SQL query')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Copied SQL query' }))
+    fireEvent.change(screen.getByPlaceholderText('Event title'), {
+      target: { value: 'Updated SQL query' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Event content'), {
+      target: { value: 'select id from events;' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(updateEvent).toHaveBeenCalledWith(1, {
+        source: 'clipboard',
+        event_type: 'snippet',
+        title: 'Updated SQL query',
+        content: 'select id from events;',
+      })
     })
   })
 })

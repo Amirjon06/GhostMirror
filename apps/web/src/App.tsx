@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -15,6 +15,8 @@ import {
   LayoutDashboard,
   Loader2,
   Plus,
+  Save,
+  Pencil,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -23,8 +25,8 @@ import {
   X,
 } from 'lucide-react'
 
-import { createEvent, deleteEvent, getEventSummary, listEvents } from './lib/api'
-import type { EventRecord } from './lib/types'
+import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './lib/api'
+import type { EventRecord, EventUpdatePayload } from './lib/types'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, active: true },
@@ -66,6 +68,11 @@ function App() {
   const [sourceFilter, setSourceFilter] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('')
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
+  const [isEditingSelectedEvent, setIsEditingSelectedEvent] = useState(false)
+  const [editSource, setEditSource] = useState('')
+  const [editEventType, setEditEventType] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
 
   const eventListParams = useMemo(
     () => ({
@@ -105,12 +112,33 @@ function App() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ eventId, payload }: { eventId: number; payload: EventUpdatePayload }) =>
+      updateEvent(eventId, payload),
+    onSuccess: async (event) => {
+      setSelectedEventId(event.id)
+      setIsEditingSelectedEvent(false)
+      await queryClient.invalidateQueries({ queryKey: ['events'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+    },
+  })
+
   const events = eventsQuery.data ?? emptyEvents
   const summary = summaryQuery.data
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
+
+  useEffect(() => {
+    setIsEditingSelectedEvent(false)
+  }, [selectedEventId])
+
   const hasEvents = events.length > 0
   const hasActiveSearch = Boolean(eventListParams.q || eventListParams.source || eventListParams.eventType)
   const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
+  const canUpdate =
+    selectedEvent !== null &&
+    editTitle.trim().length > 0 &&
+    editContent.trim().length > 0 &&
+    !updateMutation.isPending
   const totalEventsValue = summary ? String(summary.total_events) : summaryQuery.isError ? 'Unavailable' : 'Loading'
   const sourcesTrackedValue = summary
     ? String(Object.keys(summary.source_counts ?? {}).length)
@@ -151,6 +179,31 @@ function App() {
     setSearchTerm('')
     setSourceFilter('')
     setEventTypeFilter('')
+  }
+
+  function startEditingEvent(event: EventRecord) {
+    setEditSource(event.source)
+    setEditEventType(event.event_type)
+    setEditTitle(event.title)
+    setEditContent(event.content)
+    setIsEditingSelectedEvent(true)
+  }
+
+  function handleUpdateEvent(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedEvent || !canUpdate) {
+      return
+    }
+
+    updateMutation.mutate({
+      eventId: selectedEvent.id,
+      payload: {
+        source: editSource,
+        event_type: editEventType,
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      },
+    })
   }
 
   return (
@@ -416,12 +469,103 @@ function App() {
 
               <aside className="space-y-6">
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center gap-2">
-                    <Eye size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Event detail</h2>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Eye size={18} className="text-cyan-200" aria-hidden="true" />
+                      <h2 className="text-base font-semibold text-white">Event detail</h2>
+                    </div>
+                    {selectedEvent && !isEditingSelectedEvent ? (
+                      <button
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                        type="button"
+                        aria-label={`Edit ${selectedEvent.title}`}
+                        onClick={() => startEditingEvent(selectedEvent)}
+                      >
+                        <Pencil size={16} aria-hidden="true" />
+                      </button>
+                    ) : null}
                   </div>
 
-                  {selectedEvent ? (
+                  {selectedEvent && isEditingSelectedEvent ? (
+                    <form className="mt-5 space-y-4" onSubmit={handleUpdateEvent}>
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        Source
+                        <select
+                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                          value={editSource}
+                          onChange={(event) => setEditSource(event.target.value)}
+                        >
+                          {sourceOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        Type
+                        <select
+                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+                          value={editEventType}
+                          onChange={(event) => setEditEventType(event.target.value)}
+                        >
+                          {eventTypeOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        Title
+                        <input
+                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                          value={editTitle}
+                          onChange={(event) => setEditTitle(event.target.value)}
+                          placeholder="Event title"
+                        />
+                      </label>
+
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        Content
+                        <textarea
+                          className="min-h-28 resize-none rounded-lg border border-white/10 bg-[#0d1017] px-3 py-2 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+                          value={editContent}
+                          onChange={(event) => setEditContent(event.target.value)}
+                          placeholder="Event content"
+                        />
+                      </label>
+
+                      {updateMutation.isError ? (
+                        <p className="text-sm leading-6 text-red-200">Could not update the event.</p>
+                      ) : null}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                          type="button"
+                          onClick={() => setIsEditingSelectedEvent(false)}
+                        >
+                          <X size={16} aria-hidden="true" />
+                          Cancel
+                        </button>
+                        <button
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                          type="submit"
+                          disabled={!canUpdate}
+                        >
+                          {updateMutation.isPending ? (
+                            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Save size={16} aria-hidden="true" />
+                          )}
+                          Save
+                        </button>
+                      </div>
+                    </form>
+                  ) : selectedEvent ? (
                     <div className="mt-5 space-y-5">
                       <div>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">

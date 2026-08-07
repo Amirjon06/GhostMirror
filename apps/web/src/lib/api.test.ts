@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createEvent, deleteEvent, getEventSummary, listEvents } from './api'
+import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './api'
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -98,6 +98,37 @@ describe('event API client', () => {
       'http://127.0.0.1:8000/events/stats/summary',
       expect.objectContaining({
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    )
+  })
+
+  it('updates events with a JSON body', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        source: 'manual',
+        event_type: 'note',
+        title: 'Updated note',
+        content: 'Updated content',
+        metadata: {},
+        created_at: '2026-08-06T00:00:00Z',
+        updated_at: '2026-08-06T00:01:00Z',
+      }),
+    )
+
+    await updateEvent(1, {
+      title: 'Updated note',
+      content: 'Updated content',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/events/1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: 'Updated note',
+          content: 'Updated content',
+        }),
       }),
     )
   })

@@ -169,6 +169,65 @@ def test_get_missing_event_returns_404(client):
     assert response.json() == {"detail": "Event not found"}
 
 
+def test_update_event(client):
+    created = client.post("/events", json=event_payload()).json()
+
+    response = client.patch(
+        f"/events/{created['id']}",
+        json={
+            "title": "Updated SQL query",
+            "content": "select id from events;",
+            "metadata": {"language": "sql", "reviewed": True},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == created["id"]
+    assert body["source"] == "clipboard"
+    assert body["event_type"] == "snippet"
+    assert body["title"] == "Updated SQL query"
+    assert body["content"] == "select id from events;"
+    assert body["metadata"] == {"language": "sql", "reviewed": True}
+
+
+def test_update_event_keeps_search_index_current(client):
+    created = client.post("/events", json=event_payload(title="Draft note")).json()
+
+    client.patch(f"/events/{created['id']}", json={"title": "Updated migration note"})
+
+    old_search = client.get("/events?q=draft")
+    new_search = client.get("/events?q=migration")
+
+    assert old_search.status_code == 200
+    assert old_search.json() == []
+    assert new_search.status_code == 200
+    assert [event["id"] for event in new_search.json()] == [created["id"]]
+
+
+def test_update_missing_event_returns_404(client):
+    response = client.patch("/events/999", json={"title": "Missing event"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Event not found"}
+
+
+def test_update_event_rejects_empty_payload(client):
+    created = client.post("/events", json=event_payload()).json()
+
+    response = client.patch(f"/events/{created['id']}", json={})
+
+    assert response.status_code == 422
+
+
+def test_update_event_rejects_blank_title(client):
+    created = client.post("/events", json=event_payload()).json()
+
+    response = client.patch(f"/events/{created['id']}", json={"title": "   "})
+
+    assert response.status_code == 422
+
+
 def test_delete_event(client):
     created = client.post("/events", json=event_payload()).json()
 

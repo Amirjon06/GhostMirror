@@ -52,6 +52,11 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
       return
     }
 
+    if (request.method() === 'PATCH') {
+      await route.fulfill({ json: events[0] })
+      return
+    }
+
     await route.continue()
   })
 

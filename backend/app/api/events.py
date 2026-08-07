@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.event import EventCreate, EventRead, EventSummary
+from app.schemas.event import EventCreate, EventRead, EventSummary, EventUpdate
 from app.services import events as event_service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -48,6 +48,20 @@ def get_event(event_id: int, db: Annotated[Session, Depends(get_db)]) -> EventRe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
     return EventRead.from_model(event)
+
+
+@router.patch("/{event_id}", response_model=EventRead)
+def update_event(
+    event_id: int,
+    event_in: EventUpdate,
+    db: Annotated[Session, Depends(get_db)],
+) -> EventRead:
+    event = event_service.get_event(db, event_id)
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    updated_event = event_service.update_event(db, event, event_in)
+    return EventRead.from_model(updated_event)
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)

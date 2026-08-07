@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class EventBase(BaseModel):
@@ -16,6 +16,26 @@ class EventBase(BaseModel):
 
 class EventCreate(EventBase):
     pass
+
+
+class EventUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    source: str | None = Field(default=None, min_length=1, max_length=80)
+    event_type: str | None = Field(default=None, min_length=1, max_length=80)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    content: str | None = Field(default=None, min_length=1)
+    metadata: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def require_update_field(self) -> "EventUpdate":
+        if not any(
+            value is not None
+            for value in (self.source, self.event_type, self.title, self.content, self.metadata)
+        ):
+            raise ValueError("At least one field is required")
+
+        return self
 
 
 class EventRead(EventBase):

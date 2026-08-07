@@ -94,6 +94,29 @@ GET /events/{id}
 
 Returns `404 Not Found` when the event does not exist.
 
+### Update Event
+
+```text
+PATCH /events/{id}
+```
+
+Request fields are optional, but at least one field must be provided.
+
+Example:
+
+```json
+{
+  "title": "Updated SQL query",
+  "content": "select id from events;",
+  "metadata": {
+    "language": "sql",
+    "reviewed": true
+  }
+}
+```
+
+Returns `404 Not Found` when the event does not exist.
+
 ### Event Summary
 
 ```text

@@ -9,7 +9,7 @@ This roadmap describes planned technical work. It does not imply release dates.
 - FastAPI service.
 - SQLite event persistence.
 - Alembic migration for the `events` table.
-- Event create, list, read, and delete API.
+- Event create, list, read, update, and delete API.
 - Event summary API.
 - Event keyword search and filters.
 - SQLite FTS5 indexing for event search.

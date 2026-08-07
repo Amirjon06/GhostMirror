@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
-from app.schemas.event import EventCreate, EventSummary
+from app.schemas.event import EventCreate, EventSummary, EventUpdate
 
 
 def _escape_like(value: str) -> str:
@@ -45,6 +45,22 @@ def create_event(db: Session, event_in: EventCreate) -> Event:
         metadata_=event_in.metadata,
     )
     db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+def update_event(db: Session, event: Event, event_in: EventUpdate) -> Event:
+    values = event_in.model_dump(exclude_unset=True)
+
+    for field in ("source", "event_type", "title", "content"):
+        value = values.get(field)
+        if value is not None:
+            setattr(event, field, value)
+
+    if "metadata" in values and values["metadata"] is not None:
+        event.metadata_ = values["metadata"]
+
     db.commit()
     db.refresh(event)
     return event

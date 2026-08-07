@@ -17,6 +17,8 @@ export interface EventCreatePayload {
   metadata: Record<string, unknown>
 }
 
+export type EventUpdatePayload = Partial<EventCreatePayload>
+
 export interface EventListParams {
   q?: string
   source?: string
