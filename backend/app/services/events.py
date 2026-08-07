@@ -4,8 +4,8 @@ from sqlalchemy import case, func, or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models.event import Event
-from app.schemas.event import EventCreate, EventSummary, EventUpdate
+from app.models.event import Event, utc_now
+from app.schemas.event import EventCreate, EventExport, EventRead, EventSummary, EventUpdate
 
 
 def _escape_like(value: str) -> str:
@@ -136,6 +136,17 @@ def get_event_summary(db: Session) -> EventSummary:
         source_counts=source_counts,
         event_type_counts=event_type_counts,
         latest_event_created_at=latest_event_created_at,
+    )
+
+
+def export_events(db: Session) -> EventExport:
+    events = db.scalars(select(Event).order_by(Event.created_at.desc(), Event.id.desc())).all()
+    event_records = [EventRead.from_model(event) for event in events]
+
+    return EventExport(
+        exported_at=utc_now(),
+        total_events=len(event_records),
+        events=event_records,
     )
 
 

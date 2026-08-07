@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './api'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './api'
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -96,6 +96,37 @@ describe('event API client', () => {
     expect(summary.total_events).toBe(2)
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/events/stats/summary',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    )
+  })
+
+  it('exports events as JSON data', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        exported_at: '2026-08-07T12:00:00Z',
+        total_events: 1,
+        events: [
+          {
+            id: 1,
+            source: 'clipboard',
+            event_type: 'snippet',
+            title: 'Copied SQL query',
+            content: 'select * from events;',
+            metadata: {},
+            created_at: '2026-08-06T00:00:00Z',
+            updated_at: '2026-08-06T00:00:00Z',
+          },
+        ],
+      }),
+    )
+
+    const exported = await exportEvents()
+
+    expect(exported.total_events).toBe(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/events/export',
       expect.objectContaining({
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
       }),

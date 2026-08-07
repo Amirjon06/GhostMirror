@@ -31,3 +31,9 @@ export interface EventSummary {
   event_type_counts: Record<string, number>
   latest_event_created_at: string | null
 }
+
+export interface EventExport {
+  exported_at: string
+  total_events: number
+  events: EventRecord[]
+}

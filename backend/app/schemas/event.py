@@ -64,3 +64,9 @@ class EventSummary(BaseModel):
     source_counts: dict[str, int]
     event_type_counts: dict[str, int]
     latest_event_created_at: datetime | None
+
+
+class EventExport(BaseModel):
+    exported_at: datetime
+    total_events: int
+    events: list[EventRead]

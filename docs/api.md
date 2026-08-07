@@ -140,6 +140,37 @@ Response:
 }
 ```
 
+### Export Events
+
+```text
+GET /events/export
+```
+
+Returns all stored events newest first.
+
+Response:
+
+```json
+{
+  "exported_at": "2026-08-07T12:00:00Z",
+  "total_events": 1,
+  "events": [
+    {
+      "id": 1,
+      "source": "clipboard",
+      "event_type": "snippet",
+      "title": "Copied SQL query",
+      "content": "select * from events;",
+      "metadata": {
+        "language": "sql"
+      },
+      "created_at": "2026-08-06T12:00:00Z",
+      "updated_at": "2026-08-06T12:00:00Z"
+    }
+  ]
+}
+```
+
 ### Delete Event
 
 ```text

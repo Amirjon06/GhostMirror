@@ -6,12 +6,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './lib/api'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './lib/api'
 import type { EventRecord, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
   createEvent: vi.fn(),
   deleteEvent: vi.fn(),
+  exportEvents: vi.fn(),
   getEventSummary: vi.fn(),
   listEvents: vi.fn(),
   updateEvent: vi.fn(),
@@ -72,6 +73,7 @@ describe('dashboard', () => {
   beforeEach(() => {
     vi.mocked(createEvent).mockReset()
     vi.mocked(deleteEvent).mockReset()
+    vi.mocked(exportEvents).mockReset()
     vi.mocked(getEventSummary).mockReset()
     vi.mocked(listEvents).mockReset()
     vi.mocked(updateEvent).mockReset()
@@ -198,6 +200,35 @@ describe('dashboard', () => {
         title: 'Updated SQL query',
         content: 'select id from events;',
       })
+    })
+  })
+
+  it('exports events from the activity header', async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:ghostmirror-export'),
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    })
+    vi.mocked(listEvents).mockResolvedValue(events)
+    vi.mocked(exportEvents).mockResolvedValue({
+      exported_at: '2026-08-07T12:00:00Z',
+      total_events: 2,
+      events,
+    })
+
+    renderDashboard()
+
+    await screen.findAllByText('Copied SQL query')
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+
+    await waitFor(() => {
+      expect(exportEvents).toHaveBeenCalled()
+      expect(clickMock).toHaveBeenCalled()
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:ghostmirror-export')
     })
   })
 })

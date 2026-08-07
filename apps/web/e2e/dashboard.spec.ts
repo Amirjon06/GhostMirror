@@ -46,6 +46,17 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
       return
     }
 
+    if (request.url().endsWith('/events/export')) {
+      await route.fulfill({
+        json: {
+          exported_at: '2026-08-07T12:00:00Z',
+          total_events: events.length,
+          events,
+        },
+      })
+      return
+    }
+
     if (request.method() === 'GET') {
       eventRequests.push(request.url())
       await route.fulfill({ json: events })

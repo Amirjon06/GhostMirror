@@ -139,6 +139,29 @@ def test_event_summary_counts_events_by_source_and_type(client):
     }
 
 
+def test_export_events_returns_empty_export(client):
+    response = client.get("/events/export")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["exported_at"]
+    assert body["total_events"] == 0
+    assert body["events"] == []
+
+
+def test_export_events_returns_newest_first(client):
+    first = client.post("/events", json=event_payload(title="First event")).json()
+    second = client.post("/events", json=event_payload(title="Second event")).json()
+
+    response = client.get("/events/export")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_events"] == 2
+    assert [event["id"] for event in body["events"]] == [second["id"], first["id"]]
+    assert body["events"][0]["title"] == "Second event"
+
+
 def test_deleted_event_is_removed_from_search_results(client):
     created = client.post("/events", json=event_payload(title="Temporary migration note")).json()
 

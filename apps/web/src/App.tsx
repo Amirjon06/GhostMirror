@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Database,
+  Download,
   Eye,
   FileSearch,
   FolderGit2,
@@ -25,8 +26,8 @@ import {
   X,
 } from 'lucide-react'
 
-import { createEvent, deleteEvent, getEventSummary, listEvents, updateEvent } from './lib/api'
-import type { EventRecord, EventUpdatePayload } from './lib/types'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './lib/api'
+import type { EventExport, EventRecord, EventUpdatePayload } from './lib/types'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, active: true },
@@ -56,6 +57,20 @@ function formatMetadata(metadata: EventRecord['metadata']) {
   }
 
   return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' · ')
+}
+
+function downloadEventExport(payload: EventExport) {
+  const exportedDate = new Date(payload.exported_at).toISOString().slice(0, 10)
+  const fileContents = JSON.stringify(payload, null, 2)
+  const fileUrl = URL.createObjectURL(new Blob([fileContents], { type: 'application/json' }))
+  const link = document.createElement('a')
+
+  link.href = fileUrl
+  link.download = `ghostmirror-events-${exportedDate}.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(fileUrl)
 }
 
 function App() {
@@ -121,6 +136,11 @@ function App() {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
     },
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: exportEvents,
+    onSuccess: downloadEventExport,
   })
 
   const events = eventsQuery.data ?? emptyEvents
@@ -335,6 +355,19 @@ function App() {
                       <button
                         className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button"
+                        onClick={() => exportMutation.mutate()}
+                        disabled={exportMutation.isPending}
+                      >
+                        {exportMutation.isPending ? (
+                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Download size={16} aria-hidden="true" />
+                        )}
+                        Export
+                      </button>
+                      <button
+                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
                         onClick={() => void eventsQuery.refetch()}
                         disabled={eventsQuery.isFetching}
                       >
@@ -347,6 +380,12 @@ function App() {
                       </button>
                     </div>
                   </div>
+
+                  {exportMutation.isError ? (
+                    <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
+                      Could not export events.
+                    </div>
+                  ) : null}
 
                   <div className="grid gap-3 border-b border-white/10 px-5 py-4 md:grid-cols-2">
                     <label className="grid gap-2 text-sm text-slate-300">
