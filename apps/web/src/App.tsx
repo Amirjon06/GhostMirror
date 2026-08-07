@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -15,6 +15,7 @@ import {
   Inbox,
   LayoutDashboard,
   Loader2,
+  Upload,
   Plus,
   Save,
   Pencil,
@@ -26,8 +27,8 @@ import {
   X,
 } from 'lucide-react'
 
-import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './lib/api'
-import type { EventExport, EventRecord, EventUpdatePayload } from './lib/types'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, importEvents, listEvents, updateEvent } from './lib/api'
+import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload } from './lib/types'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, active: true },
@@ -75,6 +76,7 @@ function downloadEventExport(payload: EventExport) {
 
 function App() {
   const queryClient = useQueryClient()
+  const importInputRef = useRef<HTMLInputElement | null>(null)
   const [source, setSource] = useState('manual')
   const [eventType, setEventType] = useState('note')
   const [title, setTitle] = useState('')
@@ -88,6 +90,7 @@ function App() {
   const [editEventType, setEditEventType] = useState('')
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
+  const [importFileError, setImportFileError] = useState(false)
 
   const eventListParams = useMemo(
     () => ({
@@ -141,6 +144,14 @@ function App() {
   const exportMutation = useMutation({
     mutationFn: exportEvents,
     onSuccess: downloadEventExport,
+  })
+
+  const importMutation = useMutation({
+    mutationFn: importEvents,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['events'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+    },
   })
 
   const events = eventsQuery.data ?? emptyEvents
@@ -224,6 +235,23 @@ function App() {
         content: editContent.trim(),
       },
     })
+  }
+
+  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const payload = JSON.parse(await file.text()) as EventImportPayload
+      setImportFileError(false)
+      importMutation.mutate(payload)
+    } catch {
+      setImportFileError(true)
+    }
   }
 
   return (
@@ -352,6 +380,27 @@ function App() {
                           Clear
                         </button>
                       ) : null}
+                      <input
+                        ref={importInputRef}
+                        className="hidden"
+                        type="file"
+                        accept="application/json,.json"
+                        aria-label="Import events file"
+                        onChange={(event) => void handleImportFile(event)}
+                      />
+                      <button
+                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="button"
+                        onClick={() => importInputRef.current?.click()}
+                        disabled={importMutation.isPending}
+                      >
+                        {importMutation.isPending ? (
+                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Upload size={16} aria-hidden="true" />
+                        )}
+                        Import
+                      </button>
                       <button
                         className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                         type="button"
@@ -384,6 +433,12 @@ function App() {
                   {exportMutation.isError ? (
                     <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
                       Could not export events.
+                    </div>
+                  ) : null}
+
+                  {importMutation.isError || importFileError ? (
+                    <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
+                      Could not import events.
                     </div>
                   ) : null}
 

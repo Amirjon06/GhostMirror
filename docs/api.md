@@ -171,6 +171,40 @@ Response:
 }
 ```
 
+### Import Events
+
+```text
+POST /events/import
+```
+
+Imports events from a JSON payload. Extra fields from exported records, such as `id`, `created_at`, and `updated_at`, are ignored. Imported events receive new local IDs and timestamps.
+
+Request:
+
+```json
+{
+  "events": [
+    {
+      "source": "clipboard",
+      "event_type": "snippet",
+      "title": "Imported SQL query",
+      "content": "select id from events;",
+      "metadata": {
+        "language": "sql"
+      }
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "imported_events": 1
+}
+```
+
 ### Delete Event
 
 ```text

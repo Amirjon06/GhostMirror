@@ -1,6 +1,8 @@
 import type {
   EventCreatePayload,
   EventExport,
+  EventImportPayload,
+  EventImportResult,
   EventListParams,
   EventRecord,
   EventSummary,
@@ -59,6 +61,13 @@ export function getEventSummary(): Promise<EventSummary> {
 
 export function exportEvents(): Promise<EventExport> {
   return request<EventExport>('/events/export')
+}
+
+export function importEvents(payload: EventImportPayload): Promise<EventImportResult> {
+  return request<EventImportResult>('/events/import', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export function createEvent(payload: EventCreatePayload): Promise<EventRecord> {

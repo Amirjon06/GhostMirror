@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './lib/api'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, importEvents, listEvents, updateEvent } from './lib/api'
 import type { EventRecord, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
@@ -14,6 +14,7 @@ vi.mock('./lib/api', () => ({
   deleteEvent: vi.fn(),
   exportEvents: vi.fn(),
   getEventSummary: vi.fn(),
+  importEvents: vi.fn(),
   listEvents: vi.fn(),
   updateEvent: vi.fn(),
 }))
@@ -75,6 +76,7 @@ describe('dashboard', () => {
     vi.mocked(deleteEvent).mockReset()
     vi.mocked(exportEvents).mockReset()
     vi.mocked(getEventSummary).mockReset()
+    vi.mocked(importEvents).mockReset()
     vi.mocked(listEvents).mockReset()
     vi.mocked(updateEvent).mockReset()
     vi.mocked(getEventSummary).mockResolvedValue(summary)
@@ -229,6 +231,55 @@ describe('dashboard', () => {
       expect(exportEvents).toHaveBeenCalled()
       expect(clickMock).toHaveBeenCalled()
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:ghostmirror-export')
+    })
+  })
+
+  it('imports events from a selected JSON file', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+    vi.mocked(importEvents).mockResolvedValue({ imported_events: 1 })
+
+    renderDashboard()
+
+    await screen.findAllByText('Copied SQL query')
+
+    const file = new File(
+      [
+        JSON.stringify({
+          exported_at: '2026-08-07T12:00:00Z',
+          total_events: 1,
+          events: [
+            {
+              id: 99,
+              source: 'clipboard',
+              event_type: 'snippet',
+              title: 'Imported SQL query',
+              content: 'select id from events;',
+              metadata: { language: 'sql' },
+              created_at: '2026-08-06T12:00:00Z',
+              updated_at: '2026-08-06T12:00:00Z',
+            },
+          ],
+        }),
+      ],
+      'ghostmirror-events.json',
+      { type: 'application/json' },
+    )
+
+    fireEvent.change(screen.getByLabelText('Import events file'), {
+      target: { files: [file] },
+    })
+
+    await waitFor(() => {
+      expect(importEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          events: [
+            expect.objectContaining({
+              title: 'Imported SQL query',
+            }),
+          ],
+        }),
+        expect.any(Object),
+      )
     })
   })
 })

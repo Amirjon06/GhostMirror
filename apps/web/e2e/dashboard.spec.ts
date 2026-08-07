@@ -57,6 +57,11 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
       return
     }
 
+    if (request.url().endsWith('/events/import')) {
+      await route.fulfill({ json: { imported_events: 1 } })
+      return
+    }
+
     if (request.method() === 'GET') {
       eventRequests.push(request.url())
       await route.fulfill({ json: events })

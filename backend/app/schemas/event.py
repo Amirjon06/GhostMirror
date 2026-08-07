@@ -70,3 +70,11 @@ class EventExport(BaseModel):
     exported_at: datetime
     total_events: int
     events: list[EventRead]
+
+
+class EventImport(BaseModel):
+    events: list[EventCreate] = Field(max_length=1000)
+
+
+class EventImportResult(BaseModel):
+    imported_events: int

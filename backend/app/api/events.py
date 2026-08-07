@@ -4,7 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.event import EventCreate, EventExport, EventRead, EventSummary, EventUpdate
+from app.schemas.event import (
+    EventCreate,
+    EventExport,
+    EventImport,
+    EventImportResult,
+    EventRead,
+    EventSummary,
+    EventUpdate,
+)
 from app.services import events as event_service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -44,6 +52,14 @@ def get_event_summary(db: Annotated[Session, Depends(get_db)]) -> EventSummary:
 @router.get("/export", response_model=EventExport)
 def export_events(db: Annotated[Session, Depends(get_db)]) -> EventExport:
     return event_service.export_events(db)
+
+
+@router.post("/import", response_model=EventImportResult)
+def import_events(
+    event_import: EventImport,
+    db: Annotated[Session, Depends(get_db)],
+) -> EventImportResult:
+    return event_service.import_events(db, event_import)
 
 
 @router.get("/{event_id}", response_model=EventRead)

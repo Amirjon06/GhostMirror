@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createEvent, deleteEvent, exportEvents, getEventSummary, listEvents, updateEvent } from './api'
+import { createEvent, deleteEvent, exportEvents, getEventSummary, importEvents, listEvents, updateEvent } from './api'
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -129,6 +129,43 @@ describe('event API client', () => {
       'http://127.0.0.1:8000/events/export',
       expect.objectContaining({
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    )
+  })
+
+  it('imports events from JSON data', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ imported_events: 1 }))
+
+    const result = await importEvents({
+      events: [
+        {
+          source: 'clipboard',
+          event_type: 'snippet',
+          title: 'Imported SQL query',
+          content: 'select id from events;',
+          metadata: { language: 'sql' },
+        },
+      ],
+    })
+
+    expect(result.imported_events).toBe(1)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/events/import',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          events: [
+            {
+              source: 'clipboard',
+              event_type: 'snippet',
+              title: 'Imported SQL query',
+              content: 'select id from events;',
+              metadata: { language: 'sql' },
+            },
+          ],
+        }),
       }),
     )
   })

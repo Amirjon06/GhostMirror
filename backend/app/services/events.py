@@ -5,7 +5,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.event import Event, utc_now
-from app.schemas.event import EventCreate, EventExport, EventRead, EventSummary, EventUpdate
+from app.schemas.event import (
+    EventCreate,
+    EventExport,
+    EventImport,
+    EventImportResult,
+    EventRead,
+    EventSummary,
+    EventUpdate,
+)
 
 
 def _escape_like(value: str) -> str:
@@ -148,6 +156,23 @@ def export_events(db: Session) -> EventExport:
         total_events=len(event_records),
         events=event_records,
     )
+
+
+def import_events(db: Session, event_import: EventImport) -> EventImportResult:
+    events = [
+        Event(
+            source=event.source,
+            event_type=event.event_type,
+            title=event.title,
+            content=event.content,
+            metadata_=event.metadata,
+        )
+        for event in event_import.events
+    ]
+
+    db.add_all(events)
+    db.commit()
+    return EventImportResult(imported_events=len(events))
 
 
 def _list_events_with_fts(

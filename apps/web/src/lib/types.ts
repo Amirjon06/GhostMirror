@@ -37,3 +37,11 @@ export interface EventExport {
   total_events: number
   events: EventRecord[]
 }
+
+export interface EventImportPayload {
+  events: EventCreatePayload[]
+}
+
+export interface EventImportResult {
+  imported_events: number
+}

@@ -162,6 +162,52 @@ def test_export_events_returns_newest_first(client):
     assert body["events"][0]["title"] == "Second event"
 
 
+def test_import_events_from_export_payload(client):
+    export_payload = {
+        "exported_at": "2026-08-07T12:00:00Z",
+        "total_events": 1,
+        "events": [
+            {
+                "id": 99,
+                "source": "clipboard",
+                "event_type": "snippet",
+                "title": "Imported SQL query",
+                "content": "select id from events;",
+                "metadata": {"language": "sql"},
+                "created_at": "2026-08-06T12:00:00Z",
+                "updated_at": "2026-08-06T12:00:00Z",
+            },
+        ],
+    }
+
+    response = client.post("/events/import", json=export_payload)
+    list_response = client.get("/events")
+
+    assert response.status_code == 200
+    assert response.json() == {"imported_events": 1}
+    assert list_response.status_code == 200
+    imported = list_response.json()[0]
+    assert imported["id"] != 99
+    assert imported["title"] == "Imported SQL query"
+    assert imported["metadata"] == {"language": "sql"}
+
+
+def test_import_events_accepts_empty_event_list(client):
+    response = client.post("/events/import", json={"events": []})
+
+    assert response.status_code == 200
+    assert response.json() == {"imported_events": 0}
+
+
+def test_import_events_validates_event_payload(client):
+    response = client.post(
+        "/events/import",
+        json={"events": [event_payload(title="   ")]},
+    )
+
+    assert response.status_code == 422
+
+
 def test_deleted_event_is_removed_from_search_results(client):
     created = client.post("/events", json=event_payload(title="Temporary migration note")).json()
 
