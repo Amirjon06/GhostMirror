@@ -17,6 +17,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 | Migrations | `backend/alembic` | Database schema migrations. |
 | Tests | `tests` | Backend API tests. |
 | Web tests | `apps/web/src` and `apps/web/e2e` | Frontend unit and browser smoke tests. |
+| Container config | `backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.yml` | Local container builds and service orchestration. |
 
 ## Runtime Flow
 
@@ -78,3 +79,11 @@ python -m app.cli.seed_demo
 ```
 
 The demo seed command is idempotent by default and stores events with `source="demo"`.
+
+## Containerized Development
+
+Docker Compose builds separate backend and frontend images. The backend container runs FastAPI with reload enabled and stores SQLite data under `data/`. The frontend container runs the Vite development server and uses `VITE_API_BASE_URL` to call the local API.
+
+```bash
+docker compose up --build
+```

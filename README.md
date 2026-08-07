@@ -18,7 +18,7 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - Frontend Vitest coverage for the event API client and dashboard rendering.
 - Playwright browser smoke test for the dashboard.
 - GitHub Actions workflows for backend tests and frontend validation.
-- Docker Compose file for local development.
+- Docker Compose setup for local development.
 
 ## Planned Work
 
@@ -116,6 +116,14 @@ npm run test:e2e
 npm run build
 ```
 
+Run the application with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The API is available at `http://127.0.0.1:8000`, and the web app is available at `http://127.0.0.1:5173`.
+
 ## API
 
 Health:
@@ -157,6 +165,7 @@ curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
 .github/workflows/  GitHub Actions workflows
 apps/web/           React dashboard
 backend/            FastAPI application and migrations
+data/               Local SQLite data directory
 docs/               Project documentation
 tests/              Backend tests
 ```

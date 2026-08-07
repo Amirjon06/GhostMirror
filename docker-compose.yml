@@ -1,24 +1,44 @@
 services:
   api:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     working_dir: /app/backend
+    environment:
+      GHOSTMIRROR_ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173,http://0.0.0.0:5173
+      GHOSTMIRROR_DATABASE_URL: sqlite:////app/data/ghostmirror.db
     volumes:
-      - .:/app
-    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      - ./backend:/app/backend
+      - ./data:/app/data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
-    image: node:24-alpine
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
     working_dir: /app/apps/web
+    environment:
+      VITE_API_BASE_URL: http://127.0.0.1:8000
     volumes:
-      - .:/app
+      - ./apps/web:/app/apps/web
       - web_node_modules:/app/apps/web/node_modules
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: npm run dev -- --host 0.0.0.0
     ports:
       - "5173:5173"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   web_node_modules:
