@@ -22,3 +22,10 @@ export interface EventListParams {
   source?: string
   eventType?: string
 }
+
+export interface EventSummary {
+  total_events: number
+  source_counts: Record<string, number>
+  event_type_counts: Record<string, number>
+  latest_event_created_at: string | null
+}

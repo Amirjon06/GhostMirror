@@ -6,12 +6,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { createEvent, deleteEvent, listEvents } from './lib/api'
-import type { EventRecord } from './lib/types'
+import { createEvent, deleteEvent, getEventSummary, listEvents } from './lib/api'
+import type { EventRecord, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
   createEvent: vi.fn(),
   deleteEvent: vi.fn(),
+  getEventSummary: vi.fn(),
   listEvents: vi.fn(),
 }))
 
@@ -38,6 +39,19 @@ const events: EventRecord[] = [
   },
 ]
 
+const summary: EventSummary = {
+  total_events: 2,
+  source_counts: {
+    clipboard: 1,
+    filesystem: 1,
+  },
+  event_type_counts: {
+    file_snapshot: 1,
+    snippet: 1,
+  },
+  latest_event_created_at: '2026-08-06T12:05:00Z',
+}
+
 function renderDashboard() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -57,7 +71,9 @@ describe('dashboard', () => {
   beforeEach(() => {
     vi.mocked(createEvent).mockReset()
     vi.mocked(deleteEvent).mockReset()
+    vi.mocked(getEventSummary).mockReset()
     vi.mocked(listEvents).mockReset()
+    vi.mocked(getEventSummary).mockResolvedValue(summary)
   })
 
   afterEach(() => {
@@ -79,6 +95,8 @@ describe('dashboard', () => {
     renderDashboard()
 
     expect(await screen.findAllByText('Copied SQL query')).toHaveLength(3)
+    expect(screen.getByText('Total events')).toBeInTheDocument()
+    expect(screen.getByText('Sources tracked')).toBeInTheDocument()
     expect(screen.getAllByText('backend/app/main.py')).toHaveLength(2)
     expect(screen.getAllByText('select * from events;')).toHaveLength(2)
     expect(screen.getAllByText('language: sql')).toHaveLength(2)

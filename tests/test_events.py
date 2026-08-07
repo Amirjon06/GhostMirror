@@ -99,6 +99,46 @@ def test_list_events_combines_search_and_filters(client):
     assert [event["id"] for event in response.json()] == [matching_event["id"]]
 
 
+def test_event_summary_returns_empty_counts(client):
+    response = client.get("/events/stats/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_events": 0,
+        "source_counts": {},
+        "event_type_counts": {},
+        "latest_event_created_at": None,
+    }
+
+
+def test_event_summary_counts_events_by_source_and_type(client):
+    client.post("/events", json=event_payload(source="clipboard", event_type="snippet"))
+    client.post(
+        "/events",
+        json=event_payload(source="filesystem", event_type="file_snapshot"),
+    )
+    latest = client.post(
+        "/events",
+        json=event_payload(source="filesystem", event_type="file_snapshot"),
+    ).json()
+
+    response = client.get("/events/stats/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_events": 3,
+        "source_counts": {
+            "clipboard": 1,
+            "filesystem": 2,
+        },
+        "event_type_counts": {
+            "file_snapshot": 2,
+            "snippet": 1,
+        },
+        "latest_event_created_at": latest["created_at"],
+    }
+
+
 def test_deleted_event_is_removed_from_search_results(client):
     created = client.post("/events", json=event_payload(title="Temporary migration note")).json()
 

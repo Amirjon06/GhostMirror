@@ -23,7 +23,7 @@ import {
   X,
 } from 'lucide-react'
 
-import { createEvent, deleteEvent, listEvents } from './lib/api'
+import { createEvent, deleteEvent, getEventSummary, listEvents } from './lib/api'
 import type { EventRecord } from './lib/types'
 
 const navItems = [
@@ -81,6 +81,11 @@ function App() {
     queryFn: () => listEvents(eventListParams),
   })
 
+  const summaryQuery = useQuery({
+    queryKey: ['event-summary'],
+    queryFn: getEventSummary,
+  })
+
   const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: async (event) => {
@@ -88,6 +93,7 @@ function App() {
       setTitle('')
       setContent('')
       await queryClient.invalidateQueries({ queryKey: ['events'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
     },
   })
 
@@ -95,19 +101,34 @@ function App() {
     mutationFn: deleteEvent,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
     },
   })
 
   const events = eventsQuery.data ?? emptyEvents
-  const activeSources = useMemo(() => new Set(events.map((event) => event.source)).size, [events])
+  const summary = summaryQuery.data
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
   const hasEvents = events.length > 0
   const hasActiveSearch = Boolean(eventListParams.q || eventListParams.source || eventListParams.eventType)
   const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
+  const totalEventsValue = summary ? String(summary.total_events) : summaryQuery.isError ? 'Unavailable' : 'Loading'
+  const sourcesTrackedValue = summary
+    ? String(Object.keys(summary.source_counts ?? {}).length)
+    : summaryQuery.isError
+      ? 'Unavailable'
+      : 'Loading'
 
   const stats = [
-    { label: 'Events shown', value: String(events.length), detail: 'Matching the current event query' },
-    { label: 'Sources in view', value: String(activeSources), detail: 'Based on the current result set' },
+    {
+      label: 'Total events',
+      value: totalEventsValue,
+      detail: 'Stored in the local event database',
+    },
+    {
+      label: 'Sources tracked',
+      value: sourcesTrackedValue,
+      detail: 'Distinct sources in stored history',
+    },
     { label: 'Search mode', value: 'FTS5', detail: 'Indexed title and content search' },
   ]
 

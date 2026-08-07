@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
-from app.schemas.event import EventCreate
+from app.schemas.event import EventCreate, EventSummary
 
 
 def _escape_like(value: str) -> str:
@@ -95,6 +95,32 @@ def list_events(
     )
 
     return list(db.scalars(statement).all())
+
+
+def get_event_summary(db: Session) -> EventSummary:
+    total_events = db.scalar(select(func.count(Event.id))) or 0
+    latest_event_created_at = db.scalar(
+        select(Event.created_at).order_by(Event.created_at.desc(), Event.id.desc()).limit(1)
+    )
+    source_counts = {
+        source: count
+        for source, count in db.execute(
+            select(Event.source, func.count(Event.id)).group_by(Event.source).order_by(Event.source)
+        ).all()
+    }
+    event_type_counts = {
+        event_type: count
+        for event_type, count in db.execute(
+            select(Event.event_type, func.count(Event.id)).group_by(Event.event_type).order_by(Event.event_type)
+        ).all()
+    }
+
+    return EventSummary(
+        total_events=total_events,
+        source_counts=source_counts,
+        event_type_counts=event_type_counts,
+        latest_event_created_at=latest_event_created_at,
+    )
 
 
 def _list_events_with_fts(

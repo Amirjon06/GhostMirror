@@ -37,3 +37,10 @@ class EventRead(EventBase):
             created_at=event.created_at,
             updated_at=event.updated_at,
         )
+
+
+class EventSummary(BaseModel):
+    total_events: int
+    source_counts: dict[str, int]
+    event_type_counts: dict[str, int]
+    latest_event_created_at: datetime | None

@@ -94,6 +94,29 @@ GET /events/{id}
 
 Returns `404 Not Found` when the event does not exist.
 
+### Event Summary
+
+```text
+GET /events/stats/summary
+```
+
+Response:
+
+```json
+{
+  "total_events": 2,
+  "source_counts": {
+    "clipboard": 1,
+    "filesystem": 1
+  },
+  "event_type_counts": {
+    "file_snapshot": 1,
+    "snippet": 1
+  },
+  "latest_event_created_at": "2026-08-06T12:05:00Z"
+}
+```
+
 ### Delete Event
 
 ```text
