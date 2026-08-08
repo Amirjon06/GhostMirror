@@ -185,6 +185,7 @@ tests/              Backend tests
 - [Architecture](docs/architecture.md)
 - [Decisions](docs/decisions.md)
 - [Roadmap](docs/roadmap.md)
+- [Usage](docs/usage.md)
 
 ## Roadmap
 

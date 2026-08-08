@@ -19,6 +19,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 | Web tests | `apps/web/src` and `apps/web/e2e` | Frontend unit and browser smoke tests. |
 | Container config | `backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.yml` | Local container builds and service orchestration. |
 | Local scripts | `scripts` and `Makefile` | Setup, development, and validation commands. |
+| Usage docs | `docs/usage.md` | Local run and application usage instructions. |
 
 ## Runtime Flow
 
