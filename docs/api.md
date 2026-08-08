@@ -166,6 +166,29 @@ Response:
 }
 ```
 
+### Event Sources
+
+```text
+GET /events/stats/sources
+```
+
+Returns stored event counts grouped by source.
+
+Response:
+
+```json
+[
+  {
+    "source": "clipboard",
+    "total_events": 2,
+    "event_type_counts": {
+      "snippet": 2
+    },
+    "latest_event_created_at": "2026-08-07T12:00:00Z"
+  }
+]
+```
+
 ### Export Events
 
 ```text

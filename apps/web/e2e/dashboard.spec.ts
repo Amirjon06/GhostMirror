@@ -49,6 +49,21 @@ const activity = {
   ],
 }
 
+const sources = [
+  {
+    source: 'clipboard',
+    total_events: 1,
+    event_type_counts: { snippet: 1 },
+    latest_event_created_at: '2026-08-06T12:00:00Z',
+  },
+  {
+    source: 'filesystem',
+    total_events: 1,
+    event_type_counts: { file_snapshot: 1 },
+    latest_event_created_at: '2026-08-06T12:05:00Z',
+  },
+]
+
 test('renders dashboard events and sends search filters', async ({ page }) => {
   const eventRequests: string[] = []
 
@@ -61,6 +76,11 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
 
     if (request.url().includes('/events/stats/activity')) {
       await route.fulfill({ json: activity })
+      return
+    }
+
+    if (request.url().endsWith('/events/stats/sources')) {
+      await route.fulfill({ json: sources })
       return
     }
 

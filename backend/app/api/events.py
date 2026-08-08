@@ -11,6 +11,7 @@ from app.schemas.event import (
     EventImport,
     EventImportResult,
     EventRead,
+    EventSourceStats,
     EventSummary,
     EventUpdate,
 )
@@ -56,6 +57,11 @@ def get_event_activity(
     days: Annotated[int, Query(ge=1, le=90)] = 7,
 ) -> EventActivity:
     return event_service.get_event_activity(db, days=days)
+
+
+@router.get("/stats/sources", response_model=list[EventSourceStats])
+def list_event_sources(db: Annotated[Session, Depends(get_db)]) -> list[EventSourceStats]:
+    return event_service.list_event_sources(db)
 
 
 @router.get("/export", response_model=EventExport)

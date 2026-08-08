@@ -76,6 +76,13 @@ class EventActivity(BaseModel):
     buckets: list[EventActivityBucket]
 
 
+class EventSourceStats(BaseModel):
+    source: str
+    total_events: int
+    event_type_counts: dict[str, int]
+    latest_event_created_at: datetime | None
+
+
 class EventExport(BaseModel):
     exported_at: datetime
     total_events: int

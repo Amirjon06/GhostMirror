@@ -6,6 +6,7 @@ import type {
   EventImportResult,
   EventListParams,
   EventRecord,
+  EventSourceStats,
   EventSummary,
   EventUpdatePayload,
 } from './types'
@@ -62,6 +63,10 @@ export function getEventSummary(): Promise<EventSummary> {
 
 export function getEventActivity(days = 7): Promise<EventActivity> {
   return request<EventActivity>(`/events/stats/activity?days=${days}`)
+}
+
+export function listEventSources(): Promise<EventSourceStats[]> {
+  return request<EventSourceStats[]>('/events/stats/sources')
 }
 
 export function exportEvents(): Promise<EventExport> {

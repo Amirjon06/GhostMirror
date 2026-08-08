@@ -13,10 +13,11 @@ import {
   getEventActivity,
   getEventSummary,
   importEvents,
+  listEventSources,
   listEvents,
   updateEvent,
 } from './lib/api'
-import type { EventActivity, EventRecord, EventSummary } from './lib/types'
+import type { EventActivity, EventRecord, EventSourceStats, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
   createEvent: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('./lib/api', () => ({
   getEventActivity: vi.fn(),
   getEventSummary: vi.fn(),
   importEvents: vi.fn(),
+  listEventSources: vi.fn(),
   listEvents: vi.fn(),
   updateEvent: vi.fn(),
 }))
@@ -78,6 +80,21 @@ const activity: EventActivity = {
   ],
 }
 
+const sources: EventSourceStats[] = [
+  {
+    source: 'clipboard',
+    total_events: 1,
+    event_type_counts: { snippet: 1 },
+    latest_event_created_at: '2026-08-06T12:00:00Z',
+  },
+  {
+    source: 'filesystem',
+    total_events: 1,
+    event_type_counts: { file_snapshot: 1 },
+    latest_event_created_at: '2026-08-06T12:05:00Z',
+  },
+]
+
 function renderDashboard() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -101,10 +118,12 @@ describe('dashboard', () => {
     vi.mocked(getEventActivity).mockReset()
     vi.mocked(getEventSummary).mockReset()
     vi.mocked(importEvents).mockReset()
+    vi.mocked(listEventSources).mockReset()
     vi.mocked(listEvents).mockReset()
     vi.mocked(updateEvent).mockReset()
     vi.mocked(getEventActivity).mockResolvedValue(activity)
     vi.mocked(getEventSummary).mockResolvedValue(summary)
+    vi.mocked(listEventSources).mockResolvedValue(sources)
   })
 
   afterEach(() => {
@@ -129,6 +148,7 @@ describe('dashboard', () => {
     expect(screen.getByText('Total events')).toBeInTheDocument()
     expect(screen.getByText('Sources tracked')).toBeInTheDocument()
     expect(screen.getByText('7-day activity')).toBeInTheDocument()
+    expect(screen.getAllByText('Sources')).toHaveLength(2)
     expect(screen.getAllByText('backend/app/main.py')).toHaveLength(2)
     expect(screen.getAllByText('select * from events;')).toHaveLength(2)
     expect(screen.getAllByText('language: sql')).toHaveLength(2)

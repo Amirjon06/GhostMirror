@@ -169,6 +169,39 @@ def test_event_activity_validates_days(client):
     assert large_response.status_code == 422
 
 
+def test_event_sources_returns_empty_list(client):
+    response = client.get("/events/stats/sources")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_event_sources_returns_counts_by_source(client):
+    client.post("/events", json=event_payload(source="clipboard", event_type="snippet"))
+    latest = client.post(
+        "/events",
+        json=event_payload(source="filesystem", event_type="file_snapshot"),
+    ).json()
+    client.post(
+        "/events",
+        json=event_payload(source="filesystem", event_type="file_change"),
+    )
+
+    response = client.get("/events/stats/sources")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [source["source"] for source in body] == ["filesystem", "clipboard"]
+    assert body[0]["total_events"] == 2
+    assert body[0]["event_type_counts"] == {
+        "file_change": 1,
+        "file_snapshot": 1,
+    }
+    assert body[0]["latest_event_created_at"] >= latest["created_at"]
+    assert body[1]["total_events"] == 1
+    assert body[1]["event_type_counts"] == {"snippet": 1}
+
+
 def test_export_events_returns_empty_export(client):
     response = client.get("/events/export")
 

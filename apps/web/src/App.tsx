@@ -34,6 +34,7 @@ import {
   getEventActivity,
   getEventSummary,
   importEvents,
+  listEventSources,
   listEvents,
   updateEvent,
 } from './lib/api'
@@ -132,6 +133,11 @@ function App() {
     queryFn: () => getEventActivity(7),
   })
 
+  const sourcesQuery = useQuery({
+    queryKey: ['event-sources'],
+    queryFn: listEventSources,
+  })
+
   const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: async (event) => {
@@ -141,6 +147,7 @@ function App() {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
       await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
     },
   })
 
@@ -150,6 +157,7 @@ function App() {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
       await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
     },
   })
 
@@ -162,6 +170,7 @@ function App() {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
       await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
     },
   })
 
@@ -176,12 +185,14 @@ function App() {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
       await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
     },
   })
 
   const events = eventsQuery.data ?? emptyEvents
   const summary = summaryQuery.data
   const activityBuckets = activityQuery.data?.buckets ?? []
+  const sourceStats = sourcesQuery.data ?? []
   const maxActivityCount = Math.max(...activityBuckets.map((bucket) => bucket.total_events), 0)
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
 
@@ -840,6 +851,46 @@ function App() {
                         )
                       })}
                     </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+                  <div className="flex items-center gap-2">
+                    <FolderGit2 size={18} className="text-cyan-200" aria-hidden="true" />
+                    <h2 className="text-base font-semibold text-white">Sources</h2>
+                  </div>
+                  {sourcesQuery.isError ? (
+                    <p className="mt-4 text-sm leading-6 text-slate-400">Source counts are unavailable.</p>
+                  ) : sourcesQuery.isLoading ? (
+                    <div className="mt-5 flex items-center gap-2 text-sm text-slate-400">
+                      <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" />
+                      Loading sources
+                    </div>
+                  ) : sourceStats.length > 0 ? (
+                    <div className="mt-5 divide-y divide-white/10">
+                      {sourceStats.slice(0, 5).map((source) => (
+                        <button
+                          key={source.source}
+                          className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 text-left"
+                          type="button"
+                          onClick={() => setSourceFilter(source.source)}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-white">{source.source}</span>
+                            <span className="mt-1 block truncate text-xs text-slate-500">
+                              {Object.entries(source.event_type_counts)
+                                .map(([eventType, count]) => `${eventType}: ${count}`)
+                                .join(' · ')}
+                            </span>
+                          </span>
+                          <span className="text-sm font-semibold text-cyan-100">{source.total_events}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                      Sources appear after events are stored.
+                    </p>
                   )}
                 </div>
 

@@ -14,6 +14,7 @@ from app.schemas.event import (
     EventImport,
     EventImportResult,
     EventRead,
+    EventSourceStats,
     EventSummary,
     EventUpdate,
 )
@@ -170,6 +171,33 @@ def get_event_activity(db: Session, days: int = 7) -> EventActivity:
     ]
 
     return EventActivity(days=days, buckets=buckets)
+
+
+def list_event_sources(db: Session) -> list[EventSourceStats]:
+    source_rows = db.execute(
+        select(Event.source, func.count(Event.id), func.max(Event.created_at))
+        .group_by(Event.source)
+        .order_by(func.count(Event.id).desc(), Event.source)
+    ).all()
+    type_rows = db.execute(
+        select(Event.source, Event.event_type, func.count(Event.id))
+        .group_by(Event.source, Event.event_type)
+        .order_by(Event.source, Event.event_type)
+    ).all()
+    type_counts_by_source: dict[str, dict[str, int]] = {}
+
+    for source, event_type, count in type_rows:
+        type_counts_by_source.setdefault(source, {})[event_type] = count
+
+    return [
+        EventSourceStats(
+            source=source,
+            total_events=count,
+            event_type_counts=type_counts_by_source.get(source, {}),
+            latest_event_created_at=latest_event_created_at,
+        )
+        for source, count, latest_event_created_at in source_rows
+    ]
 
 
 def export_events(db: Session) -> EventExport:

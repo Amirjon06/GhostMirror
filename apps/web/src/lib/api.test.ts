@@ -7,6 +7,7 @@ import {
   getEventActivity,
   getEventSummary,
   importEvents,
+  listEventSources,
   listEvents,
   updateEvent,
 } from './api'
@@ -124,6 +125,29 @@ describe('event API client', () => {
     expect(activity.buckets[0].total_events).toBe(2)
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/events/stats/activity?days=7',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    )
+  })
+
+  it('lists source statistics', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          source: 'clipboard',
+          total_events: 2,
+          event_type_counts: { snippet: 2 },
+          latest_event_created_at: '2026-08-07T12:00:00Z',
+        },
+      ]),
+    )
+
+    const sources = await listEventSources()
+
+    expect(sources[0].source).toBe('clipboard')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/events/stats/sources',
       expect.objectContaining({
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
       }),
