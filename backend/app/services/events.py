@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy import case, func, or_, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.models.event import Event, utc_now
 from app.schemas.event import (
     EventCreate,
+    EventActivity,
+    EventActivityBucket,
     EventExport,
     EventImport,
     EventImportResult,
@@ -145,6 +148,28 @@ def get_event_summary(db: Session) -> EventSummary:
         event_type_counts=event_type_counts,
         latest_event_created_at=latest_event_created_at,
     )
+
+
+def get_event_activity(db: Session, days: int = 7) -> EventActivity:
+    end_date = utc_now().date()
+    start_date = end_date - timedelta(days=days - 1)
+    start_at = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+    event_date = func.date(Event.created_at)
+    rows = db.execute(
+        select(event_date, func.count(Event.id))
+        .where(Event.created_at >= start_at)
+        .group_by(event_date)
+    ).all()
+    counts_by_date = {str(day): count for day, count in rows}
+    buckets = [
+        EventActivityBucket(
+            date=start_date + timedelta(days=index),
+            total_events=counts_by_date.get((start_date + timedelta(days=index)).isoformat(), 0),
+        )
+        for index in range(days)
+    ]
+
+    return EventActivity(days=days, buckets=buckets)
 
 
 def export_events(db: Session) -> EventExport:

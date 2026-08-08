@@ -13,12 +13,13 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Event export API.
 - Event import API.
 - Event summary API.
+- Event activity API.
 - Event keyword search and filters.
 - SQLite FTS5 indexing for event search.
 - Clipboard ingestion command.
 - Filesystem ingestion command.
 - Dashboard integration with the event API.
-- Event detail, summary, and timeline views.
+- Event detail, summary, activity, and timeline views.
 - Frontend API client tests.
 - Frontend component tests.
 - Browser smoke test.

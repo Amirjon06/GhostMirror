@@ -140,6 +140,32 @@ Response:
 }
 ```
 
+### Event Activity
+
+```text
+GET /events/stats/activity
+```
+
+Query parameters:
+
+| Parameter | Type | Default | Notes |
+| --------- | ---- | ------- | ----- |
+| `days` | integer | 7 | Minimum 1, maximum 90. |
+
+Response:
+
+```json
+{
+  "days": 7,
+  "buckets": [
+    {
+      "date": "2026-08-07",
+      "total_events": 2
+    }
+  ]
+}
+```
+
 ### Export Events
 
 ```text

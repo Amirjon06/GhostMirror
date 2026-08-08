@@ -36,6 +36,19 @@ const summary = {
   latest_event_created_at: '2026-08-06T12:05:00Z',
 }
 
+const activity = {
+  days: 7,
+  buckets: [
+    { date: '2026-08-01', total_events: 0 },
+    { date: '2026-08-02', total_events: 1 },
+    { date: '2026-08-03', total_events: 0 },
+    { date: '2026-08-04', total_events: 2 },
+    { date: '2026-08-05', total_events: 0 },
+    { date: '2026-08-06', total_events: 1 },
+    { date: '2026-08-07', total_events: 2 },
+  ],
+}
+
 test('renders dashboard events and sends search filters', async ({ page }) => {
   const eventRequests: string[] = []
 
@@ -43,6 +56,11 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
     const request = route.request()
     if (request.url().endsWith('/events/stats/summary')) {
       await route.fulfill({ json: summary })
+      return
+    }
+
+    if (request.url().includes('/events/stats/activity')) {
+      await route.fulfill({ json: activity })
       return
     }
 

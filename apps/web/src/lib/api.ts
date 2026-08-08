@@ -1,5 +1,6 @@
 import type {
   EventCreatePayload,
+  EventActivity,
   EventExport,
   EventImportPayload,
   EventImportResult,
@@ -57,6 +58,10 @@ export function listEvents(params?: EventListParams): Promise<EventRecord[]> {
 
 export function getEventSummary(): Promise<EventSummary> {
   return request<EventSummary>('/events/stats/summary')
+}
+
+export function getEventActivity(days = 7): Promise<EventActivity> {
+  return request<EventActivity>(`/events/stats/activity?days=${days}`)
 }
 
 export function exportEvents(): Promise<EventExport> {

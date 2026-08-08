@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.event import (
     EventCreate,
+    EventActivity,
     EventExport,
     EventImport,
     EventImportResult,
@@ -47,6 +48,14 @@ def list_events(
 @router.get("/stats/summary", response_model=EventSummary)
 def get_event_summary(db: Annotated[Session, Depends(get_db)]) -> EventSummary:
     return event_service.get_event_summary(db)
+
+
+@router.get("/stats/activity", response_model=EventActivity)
+def get_event_activity(
+    db: Annotated[Session, Depends(get_db)],
+    days: Annotated[int, Query(ge=1, le=90)] = 7,
+) -> EventActivity:
+    return event_service.get_event_activity(db, days=days)
 
 
 @router.get("/export", response_model=EventExport)

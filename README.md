@@ -13,7 +13,7 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - Filesystem ingestion command for capturing text file snapshots as events.
 - Demo seed command for creating local sample events.
 - Event API for create, list, read, update, delete, export, import, keyword search, source filtering, event type filtering, and summary counts.
-- Dashboard UI connected to the event API, including summary cards, event detail, and timeline views.
+- Dashboard UI connected to the event API, including summary cards, activity counts, event detail, and timeline views.
 - Backend pytest coverage for health, event lifecycle, validation, search, and filters.
 - Frontend Vitest coverage for the event API client and dashboard rendering.
 - Playwright browser smoke test for the dashboard.
@@ -138,6 +138,7 @@ Events:
 POST /events
 GET /events
 GET /events/stats/summary
+GET /events/stats/activity
 GET /events/export
 POST /events/import
 GET /events/{id}

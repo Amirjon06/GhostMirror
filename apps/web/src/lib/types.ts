@@ -32,6 +32,16 @@ export interface EventSummary {
   latest_event_created_at: string | null
 }
 
+export interface EventActivityBucket {
+  date: string
+  total_events: number
+}
+
+export interface EventActivity {
+  days: number
+  buckets: EventActivityBucket[]
+}
+
 export interface EventExport {
   exported_at: string
   total_events: number

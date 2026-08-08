@@ -27,7 +27,16 @@ import {
   X,
 } from 'lucide-react'
 
-import { createEvent, deleteEvent, exportEvents, getEventSummary, importEvents, listEvents, updateEvent } from './lib/api'
+import {
+  createEvent,
+  deleteEvent,
+  exportEvents,
+  getEventActivity,
+  getEventSummary,
+  importEvents,
+  listEvents,
+  updateEvent,
+} from './lib/api'
 import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload } from './lib/types'
 
 const navItems = [
@@ -49,6 +58,13 @@ function formatDate(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function formatDay(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(`${value}T00:00:00`))
 }
 
 function formatMetadata(metadata: EventRecord['metadata']) {
@@ -111,6 +127,11 @@ function App() {
     queryFn: getEventSummary,
   })
 
+  const activityQuery = useQuery({
+    queryKey: ['event-activity', 7],
+    queryFn: () => getEventActivity(7),
+  })
+
   const createMutation = useMutation({
     mutationFn: createEvent,
     onSuccess: async (event) => {
@@ -119,6 +140,7 @@ function App() {
       setContent('')
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
     },
   })
 
@@ -127,6 +149,7 @@ function App() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
     },
   })
 
@@ -138,6 +161,7 @@ function App() {
       setIsEditingSelectedEvent(false)
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
     },
   })
 
@@ -151,11 +175,14 @@ function App() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['events'] })
       await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
     },
   })
 
   const events = eventsQuery.data ?? emptyEvents
   const summary = summaryQuery.data
+  const activityBuckets = activityQuery.data?.buckets ?? []
+  const maxActivityCount = Math.max(...activityBuckets.map((bucket) => bucket.total_events), 0)
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
 
   useEffect(() => {
@@ -780,6 +807,41 @@ function App() {
                     Create event
                   </button>
                 </form>
+
+                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+                  <div className="flex items-center gap-2">
+                    <Activity size={18} className="text-cyan-200" aria-hidden="true" />
+                    <h2 className="text-base font-semibold text-white">7-day activity</h2>
+                  </div>
+                  {activityQuery.isError ? (
+                    <p className="mt-4 text-sm leading-6 text-slate-400">Activity counts are unavailable.</p>
+                  ) : activityQuery.isLoading ? (
+                    <div className="mt-5 flex items-center gap-2 text-sm text-slate-400">
+                      <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" />
+                      Loading activity
+                    </div>
+                  ) : (
+                    <div className="mt-5 space-y-3">
+                      {activityBuckets.map((bucket) => {
+                        const width =
+                          maxActivityCount > 0 ? Math.max((bucket.total_events / maxActivityCount) * 100, 8) : 0
+
+                        return (
+                          <div key={bucket.date} className="grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-3">
+                            <span className="text-xs text-slate-500">{formatDay(bucket.date)}</span>
+                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-cyan-300"
+                                style={{ width: `${width}%` }}
+                              />
+                            </div>
+                            <span className="text-right text-xs font-medium text-slate-300">{bucket.total_events}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
                   <div className="flex items-center justify-between">

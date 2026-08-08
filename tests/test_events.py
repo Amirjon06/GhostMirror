@@ -139,6 +139,36 @@ def test_event_summary_counts_events_by_source_and_type(client):
     }
 
 
+def test_event_activity_returns_empty_daily_buckets(client):
+    response = client.get("/events/stats/activity")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["days"] == 7
+    assert len(body["buckets"]) == 7
+    assert sum(bucket["total_events"] for bucket in body["buckets"]) == 0
+
+
+def test_event_activity_counts_recent_events(client):
+    client.post("/events", json=event_payload(title="First event"))
+    client.post("/events", json=event_payload(title="Second event"))
+
+    response = client.get("/events/stats/activity?days=1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["days"] == 1
+    assert body["buckets"][0]["total_events"] == 2
+
+
+def test_event_activity_validates_days(client):
+    zero_response = client.get("/events/stats/activity?days=0")
+    large_response = client.get("/events/stats/activity?days=91")
+
+    assert zero_response.status_code == 422
+    assert large_response.status_code == 422
+
+
 def test_export_events_returns_empty_export(client):
     response = client.get("/events/export")
 

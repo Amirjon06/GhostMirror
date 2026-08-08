@@ -6,13 +6,23 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
-import { createEvent, deleteEvent, exportEvents, getEventSummary, importEvents, listEvents, updateEvent } from './lib/api'
-import type { EventRecord, EventSummary } from './lib/types'
+import {
+  createEvent,
+  deleteEvent,
+  exportEvents,
+  getEventActivity,
+  getEventSummary,
+  importEvents,
+  listEvents,
+  updateEvent,
+} from './lib/api'
+import type { EventActivity, EventRecord, EventSummary } from './lib/types'
 
 vi.mock('./lib/api', () => ({
   createEvent: vi.fn(),
   deleteEvent: vi.fn(),
   exportEvents: vi.fn(),
+  getEventActivity: vi.fn(),
   getEventSummary: vi.fn(),
   importEvents: vi.fn(),
   listEvents: vi.fn(),
@@ -55,6 +65,19 @@ const summary: EventSummary = {
   latest_event_created_at: '2026-08-06T12:05:00Z',
 }
 
+const activity: EventActivity = {
+  days: 7,
+  buckets: [
+    { date: '2026-08-01', total_events: 0 },
+    { date: '2026-08-02', total_events: 1 },
+    { date: '2026-08-03', total_events: 0 },
+    { date: '2026-08-04', total_events: 2 },
+    { date: '2026-08-05', total_events: 0 },
+    { date: '2026-08-06', total_events: 1 },
+    { date: '2026-08-07', total_events: 2 },
+  ],
+}
+
 function renderDashboard() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -75,10 +98,12 @@ describe('dashboard', () => {
     vi.mocked(createEvent).mockReset()
     vi.mocked(deleteEvent).mockReset()
     vi.mocked(exportEvents).mockReset()
+    vi.mocked(getEventActivity).mockReset()
     vi.mocked(getEventSummary).mockReset()
     vi.mocked(importEvents).mockReset()
     vi.mocked(listEvents).mockReset()
     vi.mocked(updateEvent).mockReset()
+    vi.mocked(getEventActivity).mockResolvedValue(activity)
     vi.mocked(getEventSummary).mockResolvedValue(summary)
   })
 
@@ -103,6 +128,7 @@ describe('dashboard', () => {
     expect(await screen.findAllByText('Copied SQL query')).toHaveLength(3)
     expect(screen.getByText('Total events')).toBeInTheDocument()
     expect(screen.getByText('Sources tracked')).toBeInTheDocument()
+    expect(screen.getByText('7-day activity')).toBeInTheDocument()
     expect(screen.getAllByText('backend/app/main.py')).toHaveLength(2)
     expect(screen.getAllByText('select * from events;')).toHaveLength(2)
     expect(screen.getAllByText('language: sql')).toHaveLength(2)

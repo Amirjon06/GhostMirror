@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -64,6 +64,16 @@ class EventSummary(BaseModel):
     source_counts: dict[str, int]
     event_type_counts: dict[str, int]
     latest_event_created_at: datetime | None
+
+
+class EventActivityBucket(BaseModel):
+    date: date
+    total_events: int
+
+
+class EventActivity(BaseModel):
+    days: int
+    buckets: list[EventActivityBucket]
 
 
 class EventExport(BaseModel):
