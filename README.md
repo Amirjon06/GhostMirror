@@ -55,6 +55,7 @@ Requirements:
 Install and run the application:
 
 ```bash
+./scripts/doctor.sh
 ./scripts/setup.sh
 ./scripts/dev.sh
 ```
@@ -64,6 +65,7 @@ The API is available at `http://127.0.0.1:8000`, and the web app is available at
 You can also use Make:
 
 ```bash
+make doctor
 make setup
 make dev
 ```

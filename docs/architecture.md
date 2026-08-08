@@ -91,7 +91,7 @@ The root scripts provide the recommended local workflow:
 ./scripts/check.sh
 ```
 
-`make setup`, `make dev`, and `make check` call the same scripts.
+`./scripts/doctor.sh` checks local prerequisites and installed project dependencies. `make doctor`, `make setup`, `make dev`, and `make check` call the same scripts.
 
 ## Containerized Development
 

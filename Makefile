@@ -1,4 +1,7 @@
-.PHONY: setup dev check check-e2e
+.PHONY: doctor setup dev check check-e2e
+
+doctor:
+	./scripts/doctor.sh
 
 setup:
 	./scripts/setup.sh
