@@ -18,6 +18,7 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 | Tests | `tests` | Backend API tests. |
 | Web tests | `apps/web/src` and `apps/web/e2e` | Frontend unit and browser smoke tests. |
 | Container config | `backend/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.yml` | Local container builds and service orchestration. |
+| Local scripts | `scripts` and `Makefile` | Setup, development, and validation commands. |
 
 ## Runtime Flow
 
@@ -79,6 +80,18 @@ python -m app.cli.seed_demo
 ```
 
 The demo seed command is idempotent by default and stores events with `source="demo"`.
+
+## Local Commands
+
+The root scripts provide the recommended local workflow:
+
+```bash
+./scripts/setup.sh
+./scripts/dev.sh
+./scripts/check.sh
+```
+
+`make setup`, `make dev`, and `make check` call the same scripts.
 
 ## Containerized Development
 

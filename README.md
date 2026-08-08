@@ -19,6 +19,7 @@ GhostMirror is a local development activity dashboard. It stores structured even
 - Playwright browser smoke test for the dashboard.
 - GitHub Actions workflows for backend tests and frontend validation.
 - Docker Compose setup for local development.
+- Local setup, development, and check scripts.
 
 ## Planned Work
 
@@ -51,31 +52,32 @@ Requirements:
 - npm
 - Python 3.11+
 
-Install and run the frontend:
+Install and run the application:
 
 ```bash
-cd apps/web
-npm install
-npm run dev
+./scripts/setup.sh
+./scripts/dev.sh
 ```
 
-The frontend uses `http://127.0.0.1:8000` by default. Set `VITE_API_BASE_URL` to use a different backend URL.
+The API is available at `http://127.0.0.1:8000`, and the web app is available at `http://127.0.0.1:5173`.
 
-Install and run the backend:
+You can also use Make:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements-dev.txt
-cd backend
-alembic upgrade head
-uvicorn app.main:app --reload
+make setup
+make dev
 ```
 
-Run backend tests:
+Run checks:
 
 ```bash
-pytest
+./scripts/check.sh
+```
+
+Run checks with the browser smoke test:
+
+```bash
+RUN_E2E=1 ./scripts/check.sh
 ```
 
 Capture clipboard events:
@@ -170,6 +172,7 @@ apps/web/           React dashboard
 backend/            FastAPI application and migrations
 data/               Local SQLite data directory
 docs/               Project documentation
+scripts/            Local setup and development commands
 tests/              Backend tests
 ```
 
