@@ -28,6 +28,22 @@ Open the dashboard at:
 http://127.0.0.1:5173
 ```
 
+## Start Local Monitoring
+
+Start the API, dashboard, and clipboard monitor:
+
+```bash
+./scripts/monitor.sh
+```
+
+Start the API, dashboard, clipboard monitor, and filesystem monitor:
+
+```bash
+./scripts/monitor.sh /path/to/workspace
+```
+
+The filesystem monitor only starts when a directory is provided.
+
 ## Create Events
 
 Use the Create event form in the dashboard to store a manual note, command, code snippet, or file-related event.

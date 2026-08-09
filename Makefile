@@ -1,4 +1,4 @@
-.PHONY: doctor setup dev check check-e2e
+.PHONY: doctor setup dev monitor check check-e2e
 
 doctor:
 	./scripts/doctor.sh
@@ -8,6 +8,9 @@ setup:
 
 dev:
 	./scripts/dev.sh
+
+monitor:
+	./scripts/monitor.sh $(WATCH_PATH)
 
 check:
 	./scripts/check.sh

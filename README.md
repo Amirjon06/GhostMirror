@@ -62,12 +62,25 @@ Install and run the application:
 
 The API is available at `http://127.0.0.1:8000`, and the web app is available at `http://127.0.0.1:5173`.
 
+Run the dashboard with clipboard monitoring:
+
+```bash
+./scripts/monitor.sh
+```
+
+Run the dashboard with clipboard and filesystem monitoring:
+
+```bash
+./scripts/monitor.sh /path/to/workspace
+```
+
 You can also use Make:
 
 ```bash
 make doctor
 make setup
 make dev
+make monitor
 ```
 
 Run checks:
