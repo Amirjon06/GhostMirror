@@ -116,12 +116,21 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
 
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'Recent activity' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Event detail' })).not.toBeVisible()
   await expect(page.getByText('Copied SQL query').first()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Notifications' }).click()
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close notifications' }).click()
+
+  await page.getByRole('button', { name: 'Events' }).click()
+  await expect(page.getByRole('heading', { name: 'Event history' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Event detail' })).toBeVisible()
   await expect(page.getByText('select * from events;').first()).toBeVisible()
 
   await page.getByPlaceholder('Search event titles and content...').fill('main')
+  await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible()
   await page.getByLabel('Source').first().selectOption('filesystem')
   await page.getByLabel('Type').first().selectOption('file_snapshot')
 

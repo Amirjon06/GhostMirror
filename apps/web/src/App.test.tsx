@@ -135,21 +135,29 @@ describe('dashboard', () => {
 
     renderDashboard()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
+
     expect(await screen.findByText('No events captured yet')).toBeInTheDocument()
     expect(screen.getByText('Create a manual event to verify the local event API and database path.')).toBeInTheDocument()
   })
 
-  it('renders events and shows the first event in the detail panel', async () => {
+  it('renders dashboard overview and separates event detail behind the events view', async () => {
     vi.mocked(listEvents).mockResolvedValue(events)
 
     renderDashboard()
 
-    expect(await screen.findAllByText('Copied SQL query')).toHaveLength(3)
+    expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByText('Local activity, organized by source.')).toBeInTheDocument()
     expect(screen.getByText('Total events')).toBeInTheDocument()
     expect(screen.getByText('Sources tracked')).toBeInTheDocument()
     expect(screen.getByText('7-day activity')).toBeInTheDocument()
-    expect(screen.getAllByText('Sources')).toHaveLength(2)
-    expect(screen.getAllByText('backend/app/main.py')).toHaveLength(2)
+    expect(screen.queryByRole('heading', { name: 'Event detail' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
+
+    expect(await screen.findByRole('heading', { name: 'Event detail' })).toBeInTheDocument()
+    expect(screen.getAllByText('Copied SQL query')).toHaveLength(2)
+    expect(screen.getAllByText('backend/app/main.py')).toHaveLength(1)
     expect(screen.getAllByText('select * from events;')).toHaveLength(2)
     expect(screen.getAllByText('language: sql')).toHaveLength(2)
   })
@@ -195,6 +203,8 @@ describe('dashboard', () => {
 
     renderDashboard()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
+
     await screen.findByText('No events captured yet')
 
     fireEvent.change(screen.getByPlaceholderText('What happened?'), {
@@ -230,7 +240,8 @@ describe('dashboard', () => {
 
     renderDashboard()
 
-    await screen.findAllByText('Copied SQL query')
+    await screen.findByText('Copied SQL query')
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Copied SQL query' }))
     fireEvent.change(screen.getByPlaceholderText('Event title'), {
@@ -270,7 +281,8 @@ describe('dashboard', () => {
 
     renderDashboard()
 
-    await screen.findAllByText('Copied SQL query')
+    await screen.findByText('Copied SQL query')
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
     fireEvent.click(screen.getByRole('button', { name: 'Export' }))
 
     await waitFor(() => {
@@ -286,7 +298,8 @@ describe('dashboard', () => {
 
     renderDashboard()
 
-    await screen.findAllByText('Copied SQL query')
+    await screen.findByText('Copied SQL query')
+    fireEvent.click(screen.getByRole('button', { name: 'Events' }))
 
     const file = new File(
       [
@@ -327,5 +340,18 @@ describe('dashboard', () => {
         expect.any(Object),
       )
     })
+  })
+
+  it('opens the notification panel from the bell button', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+
+    renderDashboard()
+
+    await screen.findByText('Copied SQL query')
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }))
+
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument()
+    expect(screen.getByText('Latest event')).toBeInTheDocument()
+    expect(screen.getAllByText('Event API').length).toBeGreaterThan(0)
   })
 })

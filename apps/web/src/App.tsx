@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -12,18 +13,19 @@ import {
   Eye,
   FileSearch,
   FolderGit2,
+  HardDrive,
   Inbox,
   LayoutDashboard,
   Loader2,
-  Upload,
-  Plus,
-  Save,
   Pencil,
+  Plus,
   RefreshCw,
+  Save,
   Search,
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react'
 
@@ -40,12 +42,14 @@ import {
 } from './lib/api'
 import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload } from './lib/types'
 
-const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, active: true },
-  { label: 'Events', icon: Activity },
-  { label: 'Search', icon: FileSearch },
-  { label: 'Sources', icon: FolderGit2 },
-  { label: 'Storage', icon: Database },
+type ActiveView = 'dashboard' | 'events' | 'search' | 'sources' | 'storage'
+
+const navItems: Array<{ id: ActiveView; label: string; icon: typeof LayoutDashboard }> = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'events', label: 'Events', icon: Activity },
+  { id: 'search', label: 'Search', icon: FileSearch },
+  { id: 'sources', label: 'Sources', icon: FolderGit2 },
+  { id: 'storage', label: 'Storage', icon: Database },
 ]
 
 const sourceOptions = ['manual', 'clipboard', 'filesystem', 'demo', 'git', 'editor']
@@ -94,6 +98,8 @@ function downloadEventExport(payload: EventExport) {
 function App() {
   const queryClient = useQueryClient()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard')
+  const [notificationOpen, setNotificationOpen] = useState(false)
   const [source, setSource] = useState('manual')
   const [eventType, setEventType] = useState('note')
   const [title, setTitle] = useState('')
@@ -142,22 +148,17 @@ function App() {
     mutationFn: createEvent,
     onSuccess: async (event) => {
       setSelectedEventId(event.id)
+      setActiveView('events')
       setTitle('')
       setContent('')
-      await queryClient.invalidateQueries({ queryKey: ['events'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+      await invalidateEventQueries()
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteEvent,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+      await invalidateEventQueries()
     },
   })
 
@@ -167,10 +168,7 @@ function App() {
     onSuccess: async (event) => {
       setSelectedEventId(event.id)
       setIsEditingSelectedEvent(false)
-      await queryClient.invalidateQueries({ queryKey: ['events'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+      await invalidateEventQueries()
     },
   })
 
@@ -182,12 +180,16 @@ function App() {
   const importMutation = useMutation({
     mutationFn: importEvents,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
-      await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+      await invalidateEventQueries()
     },
   })
+
+  async function invalidateEventQueries() {
+    await queryClient.invalidateQueries({ queryKey: ['events'] })
+    await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
+    await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
+    await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+  }
 
   const events = eventsQuery.data ?? emptyEvents
   const summary = summaryQuery.data
@@ -195,11 +197,7 @@ function App() {
   const sourceStats = sourcesQuery.data ?? []
   const maxActivityCount = Math.max(...activityBuckets.map((bucket) => bucket.total_events), 0)
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
-
-  useEffect(() => {
-    setIsEditingSelectedEvent(false)
-  }, [selectedEventId])
-
+  const latestEvent = events[0] ?? null
   const hasEvents = events.length > 0
   const hasActiveSearch = Boolean(eventListParams.q || eventListParams.source || eventListParams.eventType)
   const canCreate = title.trim().length > 0 && content.trim().length > 0 && !createMutation.isPending
@@ -219,17 +217,21 @@ function App() {
     {
       label: 'Total events',
       value: totalEventsValue,
-      detail: 'Stored in the local event database',
+      detail: 'Stored locally in SQLite',
     },
     {
       label: 'Sources tracked',
       value: sourcesTrackedValue,
-      detail: 'Distinct sources in stored history',
+      detail: 'Distinct event sources',
     },
-    { label: 'Search mode', value: 'FTS5', detail: 'Indexed title and content search' },
+    { label: 'Search mode', value: 'FTS5', detail: 'Title and content index' },
   ]
 
-  function handleCreateEvent(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    setIsEditingSelectedEvent(false)
+  }, [selectedEventId])
+
+  function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canCreate) {
       return
@@ -241,6 +243,23 @@ function App() {
       title: title.trim(),
       content: content.trim(),
       metadata: {},
+    })
+  }
+
+  function handleUpdateEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedEvent || !canUpdate) {
+      return
+    }
+
+    updateMutation.mutate({
+      eventId: selectedEvent.id,
+      payload: {
+        source: editSource,
+        event_type: editEventType,
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      },
     })
   }
 
@@ -258,24 +277,12 @@ function App() {
     setIsEditingSelectedEvent(true)
   }
 
-  function handleUpdateEvent(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!selectedEvent || !canUpdate) {
-      return
-    }
-
-    updateMutation.mutate({
-      eventId: selectedEvent.id,
-      payload: {
-        source: editSource,
-        event_type: editEventType,
-        title: editTitle.trim(),
-        content: editContent.trim(),
-      },
-    })
+  function handleHeaderSearchChange(value: string) {
+    setSearchTerm(value)
+    setActiveView('search')
   }
 
-  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
 
@@ -292,675 +299,1324 @@ function App() {
     }
   }
 
+  function selectSourceFilter(value: string) {
+    setSourceFilter(value)
+    setActiveView('search')
+  }
+
+  const eventListSummary = eventsQuery.isError
+    ? 'The event API is unavailable'
+    : hasEvents
+      ? `${events.length} stored event${events.length === 1 ? '' : 's'}`
+      : hasActiveSearch
+        ? 'No events match the current search'
+        : 'No events stored yet'
+
   return (
     <main className="min-h-screen bg-[#090b10] text-slate-100">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 border-r border-white/10 bg-[#0d1017]/95 px-5 py-6 lg:flex lg:flex-col">
+        <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-[#0d1017]/95 px-5 py-6 lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200">
-              <BrainCircuit size={22} aria-hidden="true" />
-            </div>
+            <LogoMark />
             <div>
               <p className="text-sm font-semibold text-white">GhostMirror</p>
-              <p className="text-xs text-slate-400">Activity dashboard</p>
+              <p className="text-xs text-slate-400">Local activity console</p>
             </div>
           </div>
 
-          <nav className="mt-8 space-y-1">
+          <nav className="mt-8 space-y-1" aria-label="Primary navigation">
             {navItems.map((item) => (
-              <a
-                key={item.label}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                  item.active
-                    ? 'bg-white/10 text-white shadow-sm'
+              <button
+                key={item.id}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                  activeView === item.id
+                    ? 'bg-cyan-300/10 text-cyan-50 ring-1 ring-inset ring-cyan-300/20'
                     : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
                 }`}
-                href="/"
+                type="button"
+                onClick={() => setActiveView(item.id)}
               >
                 <item.icon size={18} aria-hidden="true" />
                 {item.label}
-              </a>
+              </button>
             ))}
           </nav>
 
-          <div className="mt-auto rounded-lg border border-white/10 bg-white/[0.03] p-4">
+          <div className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
               <ShieldCheck size={16} className="text-emerald-300" aria-hidden="true" />
-              Local-first by default
+              Local storage
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Workspace activity stays local by default and is stored only when event capture is enabled.
+              Events stay on this machine unless exported manually.
             </p>
           </div>
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 border-b border-white/10 bg-[#090b10]/80 px-4 py-4 backdrop-blur md:px-8">
-            <div className="flex items-center gap-4">
-              <label className="flex h-10 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-400 transition focus-within:border-cyan-300/40">
+          <header className="relative z-10 border-b border-white/10 bg-[#090b10]/90 px-4 py-4 backdrop-blur md:px-8">
+            <div className="mx-auto flex w-full max-w-7xl items-center gap-4">
+              <div className="flex items-center gap-3 lg:hidden">
+                <LogoMark compact />
+                <span className="text-sm font-semibold text-white">GhostMirror</span>
+              </div>
+              <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-slate-400 transition focus-within:border-cyan-300/40">
                 <Search size={18} aria-hidden="true" />
                 <span className="sr-only">Search events</span>
                 <input
                   className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onFocus={() => setActiveView('search')}
+                  onChange={(event) => handleHeaderSearchChange(event.target.value)}
                   placeholder="Search event titles and content..."
                 />
               </label>
-              <button
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/10"
-                type="button"
-                aria-label="Notifications"
-              >
-                <Bell size={18} aria-hidden="true" />
-              </button>
+              <div className="relative">
+                <button
+                  className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                  type="button"
+                  aria-label="Notifications"
+                  aria-expanded={notificationOpen}
+                  onClick={() => setNotificationOpen((open) => !open)}
+                >
+                  <Bell size={18} aria-hidden="true" />
+                  {eventsQuery.isError ? (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-300" />
+                  ) : null}
+                </button>
+                {notificationOpen ? (
+                  <div className="absolute right-0 top-14 w-80 rounded-lg border border-white/10 bg-[#111620] p-4 shadow-2xl shadow-black/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-semibold text-white">Notifications</h2>
+                      <button
+                        className="text-slate-500 transition hover:text-slate-200"
+                        type="button"
+                        aria-label="Close notifications"
+                        onClick={() => setNotificationOpen(false)}
+                      >
+                        <X size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <StatusRow
+                        label="Event API"
+                        value={eventsQuery.isError ? 'Unavailable' : eventsQuery.isLoading ? 'Checking' : 'Available'}
+                        healthy={!eventsQuery.isError}
+                      />
+                      <StatusRow label="SQLite storage" value={eventsQuery.isError ? 'Unknown' : 'Available'} healthy={!eventsQuery.isError} />
+                      {latestEvent ? (
+                        <button
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                          type="button"
+                          onClick={() => {
+                            setSelectedEventId(latestEvent.id)
+                            setActiveView('events')
+                            setNotificationOpen(false)
+                          }}
+                        >
+                          <span className="block text-xs text-slate-500">Latest event</span>
+                          <span className="mt-1 block truncate text-sm font-medium text-white">{latestEvent.title}</span>
+                        </button>
+                      ) : (
+                        <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-400">
+                          No event activity has been stored yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </header>
 
-          <div className="px-4 py-6 md:px-8">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <section className="min-w-0 space-y-6">
-                <div className="overflow-hidden rounded-lg border border-white/10 bg-[#111620]">
-                  <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-6 md:p-8">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-medium text-cyan-100">
-                        <Sparkles size={14} aria-hidden="true" />
-                        Local workspace telemetry
-                      </span>
-                      <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
-                        API-backed events
-                      </span>
-                    </div>
-                    <div className="mt-8 max-w-3xl">
-                      <h1 className="text-3xl font-semibold tracking-normal text-white md:text-5xl">
-                        Real-time developer activity, stored locally.
-                      </h1>
-                      <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                        GhostMirror now reads and writes structured events through the local FastAPI
-                        service. Ingestion sources and search build on this event layer.
-                      </p>
-                    </div>
-                  </div>
+          <div className="flex-1 px-4 py-6 md:px-8">
+            <div className="mx-auto w-full max-w-7xl">
+              {activeView === 'dashboard' ? (
+                <DashboardView
+                  stats={stats}
+                  events={events}
+                  eventsQueryIsError={eventsQuery.isError}
+                  eventsQueryIsLoading={eventsQuery.isLoading}
+                  activityBuckets={activityBuckets}
+                  activityQueryIsError={activityQuery.isError}
+                  activityQueryIsLoading={activityQuery.isLoading}
+                  maxActivityCount={maxActivityCount}
+                  onOpenEvents={() => setActiveView('events')}
+                />
+              ) : null}
 
-                  <div className="grid gap-px bg-white/10 md:grid-cols-3">
-                    {stats.map((stat) => (
-                      <div key={stat.label} className="bg-[#111620] p-5">
-                        <p className="text-sm text-slate-400">{stat.label}</p>
-                        <p className="mt-2 text-3xl font-semibold text-white">{stat.value}</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">{stat.detail}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {activeView === 'events' ? (
+                <EventsView
+                  events={events}
+                  selectedEvent={selectedEvent}
+                  isEditingSelectedEvent={isEditingSelectedEvent}
+                  eventListSummary={eventListSummary}
+                  eventsQueryIsLoading={eventsQuery.isLoading}
+                  eventsQueryIsError={eventsQuery.isError}
+                  deleteMutationIsPending={deleteMutation.isPending}
+                  deleteMutationIsSuccess={deleteMutation.isSuccess}
+                  createMutationIsPending={createMutation.isPending}
+                  createMutationIsError={createMutation.isError}
+                  updateMutationIsPending={updateMutation.isPending}
+                  updateMutationIsError={updateMutation.isError}
+                  exportMutationIsPending={exportMutation.isPending}
+                  exportMutationIsError={exportMutation.isError}
+                  importMutationIsPending={importMutation.isPending}
+                  importMutationIsError={importMutation.isError}
+                  importFileError={importFileError}
+                  source={source}
+                  eventType={eventType}
+                  title={title}
+                  content={content}
+                  editSource={editSource}
+                  editEventType={editEventType}
+                  editTitle={editTitle}
+                  editContent={editContent}
+                  canCreate={canCreate}
+                  canUpdate={canUpdate}
+                  importInputRef={importInputRef}
+                  onCreateEvent={handleCreateEvent}
+                  onUpdateEvent={handleUpdateEvent}
+                  onImportFile={handleImportFile}
+                  onExportEvents={() => exportMutation.mutate()}
+                  onRefreshEvents={() => void eventsQuery.refetch()}
+                  onSetSource={setSource}
+                  onSetEventType={setEventType}
+                  onSetTitle={setTitle}
+                  onSetContent={setContent}
+                  onSetEditSource={setEditSource}
+                  onSetEditEventType={setEditEventType}
+                  onSetEditTitle={setEditTitle}
+                  onSetEditContent={setEditContent}
+                  onSelectEvent={setSelectedEventId}
+                  onStartEditing={startEditingEvent}
+                  onCancelEditing={() => setIsEditingSelectedEvent(false)}
+                  onDeleteEvent={(eventId) => {
+                    if (selectedEventId === eventId) {
+                      setSelectedEventId(null)
+                    }
+                    deleteMutation.mutate(eventId)
+                  }}
+                />
+              ) : null}
 
-                <div className="rounded-lg border border-white/10 bg-[#111620]">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-                    <div>
-                      <h2 className="text-base font-semibold text-white">Recent activity</h2>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {eventsQuery.isError
-                          ? 'The event API is unavailable'
-                          : hasEvents
-                            ? `${events.length} stored event${events.length === 1 ? '' : 's'}`
-                            : hasActiveSearch
-                              ? 'No events match the current search'
-                              : 'No event source is connected'}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {hasActiveSearch ? (
-                        <button
-                          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10"
-                          type="button"
-                          onClick={clearSearchFilters}
-                        >
-                          <X size={16} aria-hidden="true" />
-                          Clear
-                        </button>
-                      ) : null}
-                      <input
-                        ref={importInputRef}
-                        className="hidden"
-                        type="file"
-                        accept="application/json,.json"
-                        aria-label="Import events file"
-                        onChange={(event) => void handleImportFile(event)}
-                      />
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
-                        onClick={() => importInputRef.current?.click()}
-                        disabled={importMutation.isPending}
-                      >
-                        {importMutation.isPending ? (
-                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Upload size={16} aria-hidden="true" />
-                        )}
-                        Import
-                      </button>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
-                        onClick={() => exportMutation.mutate()}
-                        disabled={exportMutation.isPending}
-                      >
-                        {exportMutation.isPending ? (
-                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Download size={16} aria-hidden="true" />
-                        )}
-                        Export
-                      </button>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="button"
-                        onClick={() => void eventsQuery.refetch()}
-                        disabled={eventsQuery.isFetching}
-                      >
-                        <RefreshCw
-                          size={16}
-                          className={eventsQuery.isFetching ? 'animate-spin' : ''}
-                          aria-hidden="true"
-                        />
-                        Refresh
-                      </button>
-                    </div>
-                  </div>
+              {activeView === 'search' ? (
+                <SearchView
+                  events={events}
+                  searchTerm={searchTerm}
+                  sourceFilter={sourceFilter}
+                  eventTypeFilter={eventTypeFilter}
+                  hasActiveSearch={hasActiveSearch}
+                  eventsQueryIsLoading={eventsQuery.isLoading}
+                  eventsQueryIsError={eventsQuery.isError}
+                  onSearchTermChange={setSearchTerm}
+                  onSourceFilterChange={setSourceFilter}
+                  onEventTypeFilterChange={setEventTypeFilter}
+                  onClearSearchFilters={clearSearchFilters}
+                  onSelectEvent={(eventId) => {
+                    setSelectedEventId(eventId)
+                    setActiveView('events')
+                  }}
+                />
+              ) : null}
 
-                  {exportMutation.isError ? (
-                    <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
-                      Could not export events.
-                    </div>
-                  ) : null}
+              {activeView === 'sources' ? (
+                <SourcesView
+                  sourceStats={sourceStats}
+                  sourcesQueryIsLoading={sourcesQuery.isLoading}
+                  sourcesQueryIsError={sourcesQuery.isError}
+                  activityBuckets={activityBuckets}
+                  activityQueryIsLoading={activityQuery.isLoading}
+                  activityQueryIsError={activityQuery.isError}
+                  maxActivityCount={maxActivityCount}
+                  onSelectSource={selectSourceFilter}
+                />
+              ) : null}
 
-                  {importMutation.isError || importFileError ? (
-                    <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
-                      Could not import events.
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-3 border-b border-white/10 px-5 py-4 md:grid-cols-2">
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Source
-                      <select
-                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                        value={sourceFilter}
-                        onChange={(event) => setSourceFilter(event.target.value)}
-                      >
-                        <option value="">All sources</option>
-                        {sourceOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Type
-                      <select
-                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                        value={eventTypeFilter}
-                        onChange={(event) => setEventTypeFilter(event.target.value)}
-                      >
-                        <option value="">All types</option>
-                        {eventTypeOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  {eventsQuery.isLoading ? (
-                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center text-slate-400">
-                      <Loader2 size={26} className="animate-spin text-cyan-200" aria-hidden="true" />
-                      <p className="mt-4 text-sm">Loading events from the local API...</p>
-                    </div>
-                  ) : eventsQuery.isError ? (
-                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-400/20 bg-red-400/10 text-red-200">
-                        <AlertCircle size={22} aria-hidden="true" />
-                      </div>
-                      <h3 className="mt-4 text-sm font-semibold text-white">Event API unavailable</h3>
-                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                        Start the backend on port 8000, then refresh this panel.
-                      </p>
-                    </div>
-                  ) : hasEvents ? (
-                    <div className="divide-y divide-white/10">
-                      {events.map((event) => (
-                        <article
-                          key={event.id}
-                          className={`p-5 transition ${
-                            selectedEvent?.id === event.id
-                              ? 'bg-cyan-300/[0.06] ring-1 ring-inset ring-cyan-300/20'
-                              : 'hover:bg-white/[0.03]'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                <span className="rounded bg-cyan-300/10 px-2 py-1 text-cyan-100">
-                                  {event.source}
-                                </span>
-                                <span>{event.event_type}</span>
-                                <span>{formatDate(event.created_at)}</span>
-                              </div>
-                              <h3 className="mt-3 text-sm font-semibold text-white">{event.title}</h3>
-                              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-400">{event.content}</p>
-                              {formatMetadata(event.metadata) ? (
-                                <p className="mt-2 text-xs text-slate-500">{formatMetadata(event.metadata)}</p>
-                              ) : null}
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <button
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
-                                type="button"
-                                aria-label={`View ${event.title}`}
-                                onClick={() => setSelectedEventId(event.id)}
-                              >
-                                <Eye size={16} aria-hidden="true" />
-                              </button>
-                              <button
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
-                                type="button"
-                                aria-label={`Delete ${event.title}`}
-                                onClick={() => {
-                                  if (selectedEventId === event.id) {
-                                    setSelectedEventId(null)
-                                  }
-                                  deleteMutation.mutate(event.id)
-                                }}
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 size={16} aria-hidden="true" />
-                              </button>
-                            </div>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400">
-                        <Inbox size={22} aria-hidden="true" />
-                      </div>
-                      <h3 className="mt-4 text-sm font-semibold text-white">No events captured yet</h3>
-                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-                        {hasActiveSearch
-                          ? 'Clear the search or adjust filters to inspect the full event history.'
-                          : 'Create a manual event to verify the local event API and database path.'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <aside className="space-y-6">
-                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Eye size={18} className="text-cyan-200" aria-hidden="true" />
-                      <h2 className="text-base font-semibold text-white">Event detail</h2>
-                    </div>
-                    {selectedEvent && !isEditingSelectedEvent ? (
-                      <button
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
-                        type="button"
-                        aria-label={`Edit ${selectedEvent.title}`}
-                        onClick={() => startEditingEvent(selectedEvent)}
-                      >
-                        <Pencil size={16} aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {selectedEvent && isEditingSelectedEvent ? (
-                    <form className="mt-5 space-y-4" onSubmit={handleUpdateEvent}>
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        Source
-                        <select
-                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                          value={editSource}
-                          onChange={(event) => setEditSource(event.target.value)}
-                        >
-                          {sourceOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        Type
-                        <select
-                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                          value={editEventType}
-                          onChange={(event) => setEditEventType(event.target.value)}
-                        >
-                          {eventTypeOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        Title
-                        <input
-                          className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
-                          value={editTitle}
-                          onChange={(event) => setEditTitle(event.target.value)}
-                          placeholder="Event title"
-                        />
-                      </label>
-
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        Content
-                        <textarea
-                          className="min-h-28 resize-none rounded-lg border border-white/10 bg-[#0d1017] px-3 py-2 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
-                          value={editContent}
-                          onChange={(event) => setEditContent(event.target.value)}
-                          placeholder="Event content"
-                        />
-                      </label>
-
-                      {updateMutation.isError ? (
-                        <p className="text-sm leading-6 text-red-200">Could not update the event.</p>
-                      ) : null}
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/10"
-                          type="button"
-                          onClick={() => setIsEditingSelectedEvent(false)}
-                        >
-                          <X size={16} aria-hidden="true" />
-                          Cancel
-                        </button>
-                        <button
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-                          type="submit"
-                          disabled={!canUpdate}
-                        >
-                          {updateMutation.isPending ? (
-                            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                          ) : (
-                            <Save size={16} aria-hidden="true" />
-                          )}
-                          Save
-                        </button>
-                      </div>
-                    </form>
-                  ) : selectedEvent ? (
-                    <div className="mt-5 space-y-5">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                          <span className="rounded bg-cyan-300/10 px-2 py-1 text-cyan-100">
-                            {selectedEvent.source}
-                          </span>
-                          <span>{selectedEvent.event_type}</span>
-                          <span>{formatDate(selectedEvent.created_at)}</span>
-                        </div>
-                        <h3 className="mt-3 text-sm font-semibold leading-6 text-white">{selectedEvent.title}</h3>
-                      </div>
-
-                      <div className="max-h-72 overflow-auto rounded-lg border border-white/10 bg-[#0d1017] p-3">
-                        <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
-                          {selectedEvent.content}
-                        </pre>
-                      </div>
-
-                      <dl className="grid gap-3 text-sm">
-                        <div className="flex items-center justify-between gap-4">
-                          <dt className="text-slate-500">Created</dt>
-                          <dd className="text-right text-slate-300">{formatDate(selectedEvent.created_at)}</dd>
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <dt className="text-slate-500">Updated</dt>
-                          <dd className="text-right text-slate-300">{formatDate(selectedEvent.updated_at)}</dd>
-                        </div>
-                      </dl>
-
-                      {formatMetadata(selectedEvent.metadata) ? (
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Metadata</p>
-                          <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-300">
-                            {formatMetadata(selectedEvent.metadata)}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Select an event to inspect its content and metadata.
-                    </p>
-                  )}
-                </div>
-
-                <form className="rounded-lg border border-white/10 bg-[#111620] p-5" onSubmit={handleCreateEvent}>
-                  <div className="flex items-center gap-2">
-                    <Plus size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Create event</h2>
-                  </div>
-
-                  <div className="mt-5 grid gap-3">
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Source
-                      <select
-                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                        value={source}
-                        onChange={(event) => setSource(event.target.value)}
-                      >
-                        {sourceOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Type
-                      <select
-                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
-                        value={eventType}
-                        onChange={(event) => setEventType(event.target.value)}
-                      >
-                        {eventTypeOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Title
-                      <input
-                        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
-                        value={title}
-                        onChange={(event) => setTitle(event.target.value)}
-                        placeholder="What happened?"
-                      />
-                    </label>
-
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      Content
-                      <textarea
-                        className="min-h-24 resize-none rounded-lg border border-white/10 bg-[#0d1017] px-3 py-2 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
-                        value={content}
-                        onChange={(event) => setContent(event.target.value)}
-                        placeholder="Add the event details"
-                      />
-                    </label>
-                  </div>
-
-                  {createMutation.isError ? (
-                    <p className="mt-3 text-sm leading-6 text-red-200">Could not create the event.</p>
-                  ) : null}
-
-                  <button
-                    className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-                    type="submit"
-                    disabled={!canCreate}
-                  >
-                    {createMutation.isPending ? (
-                      <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Plus size={16} aria-hidden="true" />
-                    )}
-                    Create event
-                  </button>
-                </form>
-
-                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center gap-2">
-                    <Activity size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">7-day activity</h2>
-                  </div>
-                  {activityQuery.isError ? (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">Activity counts are unavailable.</p>
-                  ) : activityQuery.isLoading ? (
-                    <div className="mt-5 flex items-center gap-2 text-sm text-slate-400">
-                      <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" />
-                      Loading activity
-                    </div>
-                  ) : (
-                    <div className="mt-5 space-y-3">
-                      {activityBuckets.map((bucket) => {
-                        const width =
-                          maxActivityCount > 0 ? Math.max((bucket.total_events / maxActivityCount) * 100, 8) : 0
-
-                        return (
-                          <div key={bucket.date} className="grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-3">
-                            <span className="text-xs text-slate-500">{formatDay(bucket.date)}</span>
-                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                              <div
-                                className="h-full rounded-full bg-cyan-300"
-                                style={{ width: `${width}%` }}
-                              />
-                            </div>
-                            <span className="text-right text-xs font-medium text-slate-300">{bucket.total_events}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center gap-2">
-                    <FolderGit2 size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Sources</h2>
-                  </div>
-                  {sourcesQuery.isError ? (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">Source counts are unavailable.</p>
-                  ) : sourcesQuery.isLoading ? (
-                    <div className="mt-5 flex items-center gap-2 text-sm text-slate-400">
-                      <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" />
-                      Loading sources
-                    </div>
-                  ) : sourceStats.length > 0 ? (
-                    <div className="mt-5 divide-y divide-white/10">
-                      {sourceStats.slice(0, 5).map((source) => (
-                        <button
-                          key={source.source}
-                          className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 text-left"
-                          type="button"
-                          onClick={() => setSourceFilter(source.source)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-white">{source.source}</span>
-                            <span className="mt-1 block truncate text-xs text-slate-500">
-                              {Object.entries(source.event_type_counts)
-                                .map(([eventType, count]) => `${eventType}: ${count}`)
-                                .join(' · ')}
-                            </span>
-                          </span>
-                          <span className="text-sm font-semibold text-cyan-100">{source.total_events}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Sources appear after events are stored.
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-base font-semibold text-white">System status</h2>
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        eventsQuery.isError
-                          ? 'bg-red-300 shadow-[0_0_18px_rgba(252,165,165,0.75)]'
-                          : 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.75)]'
-                      }`}
-                    />
-                  </div>
-                  <div className="mt-5 space-y-4">
-                    {[
-                      ['Frontend shell', 'Available'],
-                      ['Event API', eventsQuery.isError ? 'Unavailable' : eventsQuery.isLoading ? 'Checking' : 'Available'],
-                      ['SQLite storage', eventsQuery.isError ? 'Unknown' : 'Available'],
-                    ].map(([item, status]) => (
-                      <div key={item} className="flex items-center justify-between gap-4 text-sm">
-                        <span className="text-slate-400">{item}</span>
-                        <span className={status === 'Available' ? 'text-emerald-300' : 'text-slate-500'}>{status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
-                  <div className="flex items-center gap-2">
-                    <Clock3 size={18} className="text-cyan-200" aria-hidden="true" />
-                    <h2 className="text-base font-semibold text-white">Timeline</h2>
-                  </div>
-                  {hasEvents ? (
-                    <ol className="mt-5 space-y-4">
-                      {events.slice(0, 5).map((event) => (
-                        <li key={event.id} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-3">
-                          <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-cyan-200" />
-                          <button
-                            className="min-w-0 text-left"
-                            type="button"
-                            onClick={() => setSelectedEventId(event.id)}
-                          >
-                            <span className="block truncate text-sm font-medium text-white">{event.title}</span>
-                            <span className="mt-1 block truncate text-xs text-slate-500">
-                              {event.source} · {event.event_type} · {formatDate(event.created_at)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
-                      Timeline entries appear after events are stored.
-                    </p>
-                  )}
-                </div>
-
-                {deleteMutation.isSuccess ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
-                    <CheckCircle2 size={16} aria-hidden="true" />
-                    Event deleted.
-                  </div>
-                ) : null}
-              </aside>
+              {activeView === 'storage' ? (
+                <StorageView
+                  totalEventsValue={totalEventsValue}
+                  latestEvent={summary?.latest_event_created_at ?? null}
+                  eventsQueryIsError={eventsQuery.isError}
+                  exportMutationIsPending={exportMutation.isPending}
+                  exportMutationIsError={exportMutation.isError}
+                  importMutationIsPending={importMutation.isPending}
+                  importMutationIsError={importMutation.isError}
+                  importFileError={importFileError}
+                  importInputRef={importInputRef}
+                  onImportFile={handleImportFile}
+                  onExportEvents={() => exportMutation.mutate()}
+                />
+              ) : null}
             </div>
           </div>
         </section>
       </div>
     </main>
+  )
+}
+
+function LogoMark({ compact = false }: { compact?: boolean }) {
+  const size = compact ? 'h-10 w-10' : 'h-12 w-12'
+
+  return (
+    <div
+      className={`relative flex ${size} items-center justify-center overflow-hidden rounded-xl border border-cyan-300/30 bg-[#0b1822] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)]`}
+      aria-hidden="true"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(34,211,238,0.35),transparent_34%),radial-gradient(circle_at_75%_80%,rgba(168,85,247,0.22),transparent_38%)]" />
+      <span className="absolute left-2 top-2 h-7 w-3 rounded-full border border-cyan-200/30" />
+      <span className="absolute right-2 bottom-2 h-7 w-3 rounded-full border border-violet-200/30" />
+      <BrainCircuit size={compact ? 19 : 23} className="relative" />
+    </div>
+  )
+}
+
+function ViewHeading({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="mb-6">
+      <h1 className="text-2xl font-semibold text-white md:text-3xl">{title}</h1>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{description}</p>
+    </div>
+  )
+}
+
+function StatusRow({ label, value, healthy }: { label: string; value: string; healthy: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-slate-400">{label}</span>
+      <span className={healthy ? 'text-emerald-300' : 'text-red-200'}>{value}</span>
+    </div>
+  )
+}
+
+function DashboardView({
+  stats,
+  events,
+  eventsQueryIsError,
+  eventsQueryIsLoading,
+  activityBuckets,
+  activityQueryIsError,
+  activityQueryIsLoading,
+  maxActivityCount,
+  onOpenEvents,
+}: {
+  stats: Array<{ label: string; value: string; detail: string }>
+  events: EventRecord[]
+  eventsQueryIsError: boolean
+  eventsQueryIsLoading: boolean
+  activityBuckets: Array<{ date: string; total_events: number }>
+  activityQueryIsError: boolean
+  activityQueryIsLoading: boolean
+  maxActivityCount: number
+  onOpenEvents: () => void
+}) {
+  return (
+    <>
+      <ViewHeading
+        title="Dashboard"
+        description="A compact overview of local event capture, API availability, and recent activity."
+      />
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#111620]">
+          <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-6 md:p-8">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-medium text-cyan-100">
+                <Sparkles size={14} aria-hidden="true" />
+                Local workspace activity
+              </span>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
+                API-backed events
+              </span>
+            </div>
+            <div className="mt-8 max-w-3xl">
+              <h2 className="text-3xl font-semibold text-white md:text-5xl">
+                Local activity, organized by source.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+                GhostMirror stores structured workflow events locally and makes them searchable through the dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-px bg-white/10 md:grid-cols-3">
+            {stats.map((stat) => (
+              <div key={stat.label} className="bg-[#111620] p-5">
+                <p className="text-sm text-slate-400">{stat.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{stat.value}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">{stat.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-6">
+          <SystemStatusCard eventsQueryIsError={eventsQueryIsError} eventsQueryIsLoading={eventsQueryIsLoading} />
+          <RecentPreviewCard events={events} onOpenEvents={onOpenEvents} />
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <ActivityCard
+          activityBuckets={activityBuckets}
+          isError={activityQueryIsError}
+          isLoading={activityQueryIsLoading}
+          maxActivityCount={maxActivityCount}
+        />
+      </section>
+    </>
+  )
+}
+
+function EventsView(props: {
+  events: EventRecord[]
+  selectedEvent: EventRecord | null
+  isEditingSelectedEvent: boolean
+  eventListSummary: string
+  eventsQueryIsLoading: boolean
+  eventsQueryIsError: boolean
+  deleteMutationIsPending: boolean
+  deleteMutationIsSuccess: boolean
+  createMutationIsPending: boolean
+  createMutationIsError: boolean
+  updateMutationIsPending: boolean
+  updateMutationIsError: boolean
+  exportMutationIsPending: boolean
+  exportMutationIsError: boolean
+  importMutationIsPending: boolean
+  importMutationIsError: boolean
+  importFileError: boolean
+  source: string
+  eventType: string
+  title: string
+  content: string
+  editSource: string
+  editEventType: string
+  editTitle: string
+  editContent: string
+  canCreate: boolean
+  canUpdate: boolean
+  importInputRef: React.RefObject<HTMLInputElement | null>
+  onCreateEvent: (event: FormEvent<HTMLFormElement>) => void
+  onUpdateEvent: (event: FormEvent<HTMLFormElement>) => void
+  onImportFile: (event: ChangeEvent<HTMLInputElement>) => void
+  onExportEvents: () => void
+  onRefreshEvents: () => void
+  onSetSource: (value: string) => void
+  onSetEventType: (value: string) => void
+  onSetTitle: (value: string) => void
+  onSetContent: (value: string) => void
+  onSetEditSource: (value: string) => void
+  onSetEditEventType: (value: string) => void
+  onSetEditTitle: (value: string) => void
+  onSetEditContent: (value: string) => void
+  onSelectEvent: (eventId: number) => void
+  onStartEditing: (event: EventRecord) => void
+  onCancelEditing: () => void
+  onDeleteEvent: (eventId: number) => void
+}) {
+  return (
+    <>
+      <ViewHeading
+        title="Events"
+        description="Create, inspect, update, import, export, and delete stored events."
+      />
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <section className="min-w-0 rounded-lg border border-white/10 bg-[#111620]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+            <div>
+              <h2 className="text-base font-semibold text-white">Event history</h2>
+              <p className="mt-1 text-sm text-slate-400">{props.eventListSummary}</p>
+            </div>
+            <EventFileActions
+              importInputRef={props.importInputRef}
+              importMutationIsPending={props.importMutationIsPending}
+              exportMutationIsPending={props.exportMutationIsPending}
+              onImportFile={props.onImportFile}
+              onExportEvents={props.onExportEvents}
+              onRefreshEvents={props.onRefreshEvents}
+              refreshDisabled={props.eventsQueryIsLoading}
+            />
+          </div>
+
+          <ActionErrors
+            exportMutationIsError={props.exportMutationIsError}
+            importMutationIsError={props.importMutationIsError}
+            importFileError={props.importFileError}
+          />
+
+          <EventList
+            events={props.events}
+            selectedEvent={props.selectedEvent}
+            isLoading={props.eventsQueryIsLoading}
+            isError={props.eventsQueryIsError}
+            hasActiveSearch={false}
+            deleteMutationIsPending={props.deleteMutationIsPending}
+            onSelectEvent={props.onSelectEvent}
+            onDeleteEvent={props.onDeleteEvent}
+          />
+        </section>
+
+        <aside className="grid gap-6">
+          <EventDetailCard
+            selectedEvent={props.selectedEvent}
+            isEditingSelectedEvent={props.isEditingSelectedEvent}
+            updateMutationIsPending={props.updateMutationIsPending}
+            updateMutationIsError={props.updateMutationIsError}
+            editSource={props.editSource}
+            editEventType={props.editEventType}
+            editTitle={props.editTitle}
+            editContent={props.editContent}
+            canUpdate={props.canUpdate}
+            onUpdateEvent={props.onUpdateEvent}
+            onSetEditSource={props.onSetEditSource}
+            onSetEditEventType={props.onSetEditEventType}
+            onSetEditTitle={props.onSetEditTitle}
+            onSetEditContent={props.onSetEditContent}
+            onStartEditing={props.onStartEditing}
+            onCancelEditing={props.onCancelEditing}
+          />
+
+          <CreateEventCard
+            source={props.source}
+            eventType={props.eventType}
+            title={props.title}
+            content={props.content}
+            canCreate={props.canCreate}
+            createMutationIsPending={props.createMutationIsPending}
+            createMutationIsError={props.createMutationIsError}
+            onCreateEvent={props.onCreateEvent}
+            onSetSource={props.onSetSource}
+            onSetEventType={props.onSetEventType}
+            onSetTitle={props.onSetTitle}
+            onSetContent={props.onSetContent}
+          />
+
+          {props.deleteMutationIsSuccess ? (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
+              <CheckCircle2 size={16} aria-hidden="true" />
+              Event deleted.
+            </div>
+          ) : null}
+        </aside>
+      </div>
+    </>
+  )
+}
+
+function SearchView({
+  events,
+  searchTerm,
+  sourceFilter,
+  eventTypeFilter,
+  hasActiveSearch,
+  eventsQueryIsLoading,
+  eventsQueryIsError,
+  onSearchTermChange,
+  onSourceFilterChange,
+  onEventTypeFilterChange,
+  onClearSearchFilters,
+  onSelectEvent,
+}: {
+  events: EventRecord[]
+  searchTerm: string
+  sourceFilter: string
+  eventTypeFilter: string
+  hasActiveSearch: boolean
+  eventsQueryIsLoading: boolean
+  eventsQueryIsError: boolean
+  onSearchTermChange: (value: string) => void
+  onSourceFilterChange: (value: string) => void
+  onEventTypeFilterChange: (value: string) => void
+  onClearSearchFilters: () => void
+  onSelectEvent: (eventId: number) => void
+}) {
+  return (
+    <>
+      <ViewHeading
+        title="Search"
+        description="Search event titles and content, then narrow results by source or event type."
+      />
+
+      <section className="rounded-lg border border-white/10 bg-[#111620]">
+        <div className="grid gap-4 border-b border-white/10 p-5 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
+          <label className="grid gap-2 text-sm text-slate-300">
+            Query
+            <input
+              className="h-11 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+              value={searchTerm}
+              onChange={(event) => onSearchTermChange(event.target.value)}
+              placeholder="Search title or content"
+            />
+          </label>
+
+          <FilterSelect label="Source" value={sourceFilter} options={sourceOptions} emptyLabel="All sources" onChange={onSourceFilterChange} />
+          <FilterSelect label="Type" value={eventTypeFilter} options={eventTypeOptions} emptyLabel="All types" onChange={onEventTypeFilterChange} />
+
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={onClearSearchFilters}
+            disabled={!hasActiveSearch}
+          >
+            <X size={16} aria-hidden="true" />
+            Clear
+          </button>
+        </div>
+
+        <div className="border-b border-white/10 px-5 py-4">
+          <p className="text-sm text-slate-400">
+            {eventsQueryIsError
+              ? 'The event API is unavailable'
+              : eventsQueryIsLoading
+                ? 'Loading results'
+                : `${events.length} result${events.length === 1 ? '' : 's'}`}
+          </p>
+        </div>
+
+        <EventList
+          events={events}
+          selectedEvent={null}
+          isLoading={eventsQueryIsLoading}
+          isError={eventsQueryIsError}
+          hasActiveSearch={hasActiveSearch}
+          deleteMutationIsPending={false}
+          onSelectEvent={onSelectEvent}
+          onDeleteEvent={null}
+        />
+      </section>
+    </>
+  )
+}
+
+function SourcesView({
+  sourceStats,
+  sourcesQueryIsLoading,
+  sourcesQueryIsError,
+  activityBuckets,
+  activityQueryIsLoading,
+  activityQueryIsError,
+  maxActivityCount,
+  onSelectSource,
+}: {
+  sourceStats: Array<{ source: string; total_events: number; event_type_counts: Record<string, number> }>
+  sourcesQueryIsLoading: boolean
+  sourcesQueryIsError: boolean
+  activityBuckets: Array<{ date: string; total_events: number }>
+  activityQueryIsLoading: boolean
+  activityQueryIsError: boolean
+  maxActivityCount: number
+  onSelectSource: (source: string) => void
+}) {
+  return (
+    <>
+      <ViewHeading
+        title="Sources"
+        description="Review where stored events are coming from and jump into filtered search results."
+      />
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
+          <div className="flex items-center gap-2">
+            <FolderGit2 size={18} className="text-cyan-200" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-white">Tracked sources</h2>
+          </div>
+
+          {sourcesQueryIsError ? (
+            <p className="mt-5 text-sm leading-6 text-slate-400">Source counts are unavailable.</p>
+          ) : sourcesQueryIsLoading ? (
+            <LoadingLine label="Loading sources" />
+          ) : sourceStats.length > 0 ? (
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {sourceStats.map((source) => (
+                <button
+                  key={source.source}
+                  className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                  type="button"
+                  onClick={() => onSelectSource(source.source)}
+                >
+                  <span className="flex items-center justify-between gap-4">
+                    <span className="truncate text-sm font-semibold text-white">{source.source}</span>
+                    <span className="text-sm font-semibold text-cyan-100">{source.total_events}</span>
+                  </span>
+                  <span className="mt-3 block truncate text-xs text-slate-500">
+                    {Object.entries(source.event_type_counts)
+                      .map(([eventType, count]) => `${eventType}: ${count}`)
+                      .join(' · ')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No sources yet" description="Sources appear after events are stored." />
+          )}
+        </section>
+
+        <ActivityCard
+          activityBuckets={activityBuckets}
+          isError={activityQueryIsError}
+          isLoading={activityQueryIsLoading}
+          maxActivityCount={maxActivityCount}
+        />
+      </div>
+    </>
+  )
+}
+
+function StorageView({
+  totalEventsValue,
+  latestEvent,
+  eventsQueryIsError,
+  exportMutationIsPending,
+  exportMutationIsError,
+  importMutationIsPending,
+  importMutationIsError,
+  importFileError,
+  importInputRef,
+  onImportFile,
+  onExportEvents,
+}: {
+  totalEventsValue: string
+  latestEvent: string | null
+  eventsQueryIsError: boolean
+  exportMutationIsPending: boolean
+  exportMutationIsError: boolean
+  importMutationIsPending: boolean
+  importMutationIsError: boolean
+  importFileError: boolean
+  importInputRef: React.RefObject<HTMLInputElement | null>
+  onImportFile: (event: ChangeEvent<HTMLInputElement>) => void
+  onExportEvents: () => void
+}) {
+  return (
+    <>
+      <ViewHeading
+        title="Storage"
+        description="Manage local event data and move event history in or out of GhostMirror as JSON."
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
+          <div className="flex items-center gap-2">
+            <HardDrive size={18} className="text-cyan-200" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-white">Local database</h2>
+          </div>
+          <dl className="mt-5 grid gap-4 text-sm">
+            <StorageRow label="Storage engine" value="SQLite" />
+            <StorageRow label="Stored events" value={totalEventsValue} />
+            <StorageRow label="Latest event" value={latestEvent ? formatDate(latestEvent) : 'None'} />
+            <StorageRow label="Event API" value={eventsQueryIsError ? 'Unavailable' : 'Available'} />
+          </dl>
+        </section>
+
+        <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
+          <div className="flex items-center gap-2">
+            <Database size={18} className="text-cyan-200" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-white">Import and export</h2>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            Export creates a JSON file. Import reads a GhostMirror export file and stores new local events.
+          </p>
+
+          <input
+            ref={importInputRef}
+            className="hidden"
+            type="file"
+            accept="application/json,.json"
+            aria-label="Import events file"
+            onChange={(event) => void onImportFile(event)}
+          />
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <button
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              disabled={importMutationIsPending}
+            >
+              {importMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+              Import
+            </button>
+            <button
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              onClick={onExportEvents}
+              disabled={exportMutationIsPending}
+            >
+              {exportMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Export
+            </button>
+          </div>
+
+          <ActionErrors
+            exportMutationIsError={exportMutationIsError}
+            importMutationIsError={importMutationIsError}
+            importFileError={importFileError}
+          />
+        </section>
+      </div>
+    </>
+  )
+}
+
+function EventFileActions({
+  importInputRef,
+  importMutationIsPending,
+  exportMutationIsPending,
+  refreshDisabled,
+  onImportFile,
+  onExportEvents,
+  onRefreshEvents,
+}: {
+  importInputRef: React.RefObject<HTMLInputElement | null>
+  importMutationIsPending: boolean
+  exportMutationIsPending: boolean
+  refreshDisabled: boolean
+  onImportFile: (event: ChangeEvent<HTMLInputElement>) => void
+  onExportEvents: () => void
+  onRefreshEvents: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input
+        ref={importInputRef}
+        className="hidden"
+        type="file"
+        accept="application/json,.json"
+        aria-label="Import events file"
+        onChange={(event) => void onImportFile(event)}
+      />
+      <button
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+        type="button"
+        onClick={() => importInputRef.current?.click()}
+        disabled={importMutationIsPending}
+      >
+        {importMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+        Import
+      </button>
+      <button
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+        type="button"
+        onClick={onExportEvents}
+        disabled={exportMutationIsPending}
+      >
+        {exportMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+        Export
+      </button>
+      <button
+        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+        type="button"
+        onClick={onRefreshEvents}
+        disabled={refreshDisabled}
+      >
+        <RefreshCw size={16} className={refreshDisabled ? 'animate-spin' : ''} />
+        Refresh
+      </button>
+    </div>
+  )
+}
+
+function ActionErrors({
+  exportMutationIsError,
+  importMutationIsError,
+  importFileError,
+}: {
+  exportMutationIsError: boolean
+  importMutationIsError: boolean
+  importFileError: boolean
+}) {
+  return (
+    <>
+      {exportMutationIsError ? (
+        <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
+          Could not export events.
+        </div>
+      ) : null}
+
+      {importMutationIsError || importFileError ? (
+        <div className="border-b border-red-400/20 bg-red-400/10 px-5 py-3 text-sm text-red-100">
+          Could not import events.
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function EventList({
+  events,
+  selectedEvent,
+  isLoading,
+  isError,
+  hasActiveSearch,
+  deleteMutationIsPending,
+  onSelectEvent,
+  onDeleteEvent,
+}: {
+  events: EventRecord[]
+  selectedEvent: EventRecord | null
+  isLoading: boolean
+  isError: boolean
+  hasActiveSearch: boolean
+  deleteMutationIsPending: boolean
+  onSelectEvent: (eventId: number) => void
+  onDeleteEvent: ((eventId: number) => void) | null
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center text-slate-400">
+        <Loader2 size={26} className="animate-spin text-cyan-200" aria-hidden="true" />
+        <p className="mt-4 text-sm">Loading events from the local API...</p>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-red-400/20 bg-red-400/10 text-red-200">
+          <AlertCircle size={22} aria-hidden="true" />
+        </div>
+        <h3 className="mt-4 text-sm font-semibold text-white">Event API unavailable</h3>
+        <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
+          Start the backend on port 8000, then refresh this panel.
+        </p>
+      </div>
+    )
+  }
+
+  if (events.length === 0) {
+    return (
+      <EmptyState
+        title="No events captured yet"
+        description={
+          hasActiveSearch
+            ? 'Clear the search or adjust filters to inspect the full event history.'
+            : 'Create a manual event to verify the local event API and database path.'
+        }
+      />
+    )
+  }
+
+  return (
+    <div className="divide-y divide-white/10">
+      {events.map((event) => (
+        <article
+          key={event.id}
+          className={`p-5 transition ${
+            selectedEvent?.id === event.id
+              ? 'bg-cyan-300/[0.06] ring-1 ring-inset ring-cyan-300/20'
+              : 'hover:bg-white/[0.03]'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <EventMeta event={event} />
+              <h3 className="mt-3 text-sm font-semibold text-white">{event.title}</h3>
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-400">{event.content}</p>
+              {formatMetadata(event.metadata) ? (
+                <p className="mt-2 text-xs text-slate-500">{formatMetadata(event.metadata)}</p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                type="button"
+                aria-label={`View ${event.title}`}
+                onClick={() => onSelectEvent(event.id)}
+              >
+                <Eye size={16} aria-hidden="true" />
+              </button>
+              {onDeleteEvent ? (
+                <button
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  aria-label={`Delete ${event.title}`}
+                  onClick={() => onDeleteEvent(event.id)}
+                  disabled={deleteMutationIsPending}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+function EventDetailCard(props: {
+  selectedEvent: EventRecord | null
+  isEditingSelectedEvent: boolean
+  updateMutationIsPending: boolean
+  updateMutationIsError: boolean
+  editSource: string
+  editEventType: string
+  editTitle: string
+  editContent: string
+  canUpdate: boolean
+  onUpdateEvent: (event: FormEvent<HTMLFormElement>) => void
+  onSetEditSource: (value: string) => void
+  onSetEditEventType: (value: string) => void
+  onSetEditTitle: (value: string) => void
+  onSetEditContent: (value: string) => void
+  onStartEditing: (event: EventRecord) => void
+  onCancelEditing: () => void
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Eye size={18} className="text-cyan-200" aria-hidden="true" />
+          <h2 className="text-base font-semibold text-white">Event detail</h2>
+        </div>
+        {props.selectedEvent && !props.isEditingSelectedEvent ? (
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+            type="button"
+            aria-label={`Edit ${props.selectedEvent.title}`}
+            onClick={() => props.onStartEditing(props.selectedEvent as EventRecord)}
+          >
+            <Pencil size={16} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+
+      {props.selectedEvent && props.isEditingSelectedEvent ? (
+        <form className="mt-5 space-y-4" onSubmit={props.onUpdateEvent}>
+          <FilterSelect label="Source" value={props.editSource} options={sourceOptions} onChange={props.onSetEditSource} />
+          <FilterSelect label="Type" value={props.editEventType} options={eventTypeOptions} onChange={props.onSetEditEventType} />
+          <TextInput label="Title" value={props.editTitle} onChange={props.onSetEditTitle} placeholder="Event title" />
+          <TextArea label="Content" value={props.editContent} onChange={props.onSetEditContent} placeholder="Event content" />
+
+          {props.updateMutationIsError ? (
+            <p className="text-sm leading-6 text-red-200">Could not update the event.</p>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              type="button"
+              onClick={props.onCancelEditing}
+            >
+              <X size={16} aria-hidden="true" />
+              Cancel
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={!props.canUpdate}
+            >
+              {props.updateMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Save
+            </button>
+          </div>
+        </form>
+      ) : props.selectedEvent ? (
+        <div className="mt-5 space-y-5">
+          <div>
+            <EventMeta event={props.selectedEvent} />
+            <h3 className="mt-3 text-sm font-semibold leading-6 text-white">{props.selectedEvent.title}</h3>
+          </div>
+
+          <div className="max-h-72 overflow-auto rounded-lg border border-white/10 bg-[#0d1017] p-3">
+            <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
+              {props.selectedEvent.content}
+            </pre>
+          </div>
+
+          <dl className="grid gap-3 text-sm">
+            <StorageRow label="Created" value={formatDate(props.selectedEvent.created_at)} />
+            <StorageRow label="Updated" value={formatDate(props.selectedEvent.updated_at)} />
+          </dl>
+
+          {formatMetadata(props.selectedEvent.metadata) ? (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Metadata</p>
+              <p className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-300">
+                {formatMetadata(props.selectedEvent.metadata)}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm leading-6 text-slate-400">Select an event to inspect its content and metadata.</p>
+      )}
+    </div>
+  )
+}
+
+function CreateEventCard(props: {
+  source: string
+  eventType: string
+  title: string
+  content: string
+  canCreate: boolean
+  createMutationIsPending: boolean
+  createMutationIsError: boolean
+  onCreateEvent: (event: FormEvent<HTMLFormElement>) => void
+  onSetSource: (value: string) => void
+  onSetEventType: (value: string) => void
+  onSetTitle: (value: string) => void
+  onSetContent: (value: string) => void
+}) {
+  return (
+    <form className="rounded-lg border border-white/10 bg-[#111620] p-5" onSubmit={props.onCreateEvent}>
+      <div className="flex items-center gap-2">
+        <Plus size={18} className="text-cyan-200" aria-hidden="true" />
+        <h2 className="text-base font-semibold text-white">Create event</h2>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        <FilterSelect label="Source" value={props.source} options={sourceOptions} onChange={props.onSetSource} />
+        <FilterSelect label="Type" value={props.eventType} options={eventTypeOptions} onChange={props.onSetEventType} />
+        <TextInput label="Title" value={props.title} onChange={props.onSetTitle} placeholder="What happened?" />
+        <TextArea label="Content" value={props.content} onChange={props.onSetContent} placeholder="Add the event details" />
+      </div>
+
+      {props.createMutationIsError ? (
+        <p className="mt-3 text-sm leading-6 text-red-200">Could not create the event.</p>
+      ) : null}
+
+      <button
+        className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+        type="submit"
+        disabled={!props.canCreate}
+      >
+        {props.createMutationIsPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+        Create event
+      </button>
+    </form>
+  )
+}
+
+function ActivityCard({
+  activityBuckets,
+  isError,
+  isLoading,
+  maxActivityCount,
+}: {
+  activityBuckets: Array<{ date: string; total_events: number }>
+  isError: boolean
+  isLoading: boolean
+  maxActivityCount: number
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+      <div className="flex items-center gap-2">
+        <Activity size={18} className="text-cyan-200" aria-hidden="true" />
+        <h2 className="text-base font-semibold text-white">7-day activity</h2>
+      </div>
+      {isError ? (
+        <p className="mt-4 text-sm leading-6 text-slate-400">Activity counts are unavailable.</p>
+      ) : isLoading ? (
+        <LoadingLine label="Loading activity" />
+      ) : (
+        <div className="mt-5 space-y-3">
+          {activityBuckets.map((bucket) => {
+            const width = maxActivityCount > 0 ? Math.max((bucket.total_events / maxActivityCount) * 100, 8) : 0
+
+            return (
+              <div key={bucket.date} className="grid grid-cols-[72px_minmax(0,1fr)_32px] items-center gap-3">
+                <span className="text-xs text-slate-500">{formatDay(bucket.date)}</span>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-cyan-300" style={{ width: `${width}%` }} />
+                </div>
+                <span className="text-right text-xs font-medium text-slate-300">{bucket.total_events}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SystemStatusCard({
+  eventsQueryIsError,
+  eventsQueryIsLoading,
+}: {
+  eventsQueryIsError: boolean
+  eventsQueryIsLoading: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-white">System status</h2>
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${
+            eventsQueryIsError
+              ? 'bg-red-300 shadow-[0_0_18px_rgba(252,165,165,0.75)]'
+              : 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.75)]'
+          }`}
+        />
+      </div>
+      <div className="mt-5 space-y-4">
+        <StatusRow label="Frontend shell" value="Available" healthy />
+        <StatusRow
+          label="Event API"
+          value={eventsQueryIsError ? 'Unavailable' : eventsQueryIsLoading ? 'Checking' : 'Available'}
+          healthy={!eventsQueryIsError}
+        />
+        <StatusRow label="SQLite storage" value={eventsQueryIsError ? 'Unknown' : 'Available'} healthy={!eventsQueryIsError} />
+      </div>
+    </div>
+  )
+}
+
+function RecentPreviewCard({ events, onOpenEvents }: { events: EventRecord[]; onOpenEvents: () => void }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Clock3 size={18} className="text-cyan-200" aria-hidden="true" />
+          <h2 className="text-base font-semibold text-white">Recent events</h2>
+        </div>
+        <button className="text-sm text-cyan-100 transition hover:text-cyan-50" type="button" onClick={onOpenEvents}>
+          Open
+        </button>
+      </div>
+      {events.length > 0 ? (
+        <ol className="mt-5 space-y-4">
+          {events.slice(0, 3).map((event) => (
+            <li key={event.id} className="grid grid-cols-[10px_minmax(0,1fr)] gap-3">
+              <span className="mt-2 h-2 w-2 rounded-full bg-cyan-200" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-white">{event.title}</span>
+                <span className="mt-1 block truncate text-xs text-slate-500">
+                  {event.source} · {event.event_type} · {formatDate(event.created_at)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-4 text-sm leading-6 text-slate-400">Recent events appear after data is stored.</p>
+      )}
+    </div>
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  emptyLabel,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: string[]
+  emptyLabel?: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="grid gap-2 text-sm text-slate-300">
+      {label}
+      <select
+        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition focus:border-cyan-300/50"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {emptyLabel ? <option value="">{emptyLabel}</option> : null}
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function TextInput({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="grid gap-2 text-sm text-slate-300">
+      {label}
+      <input
+        className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  )
+}
+
+function TextArea({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="grid gap-2 text-sm text-slate-300">
+      {label}
+      <textarea
+        className="min-h-24 resize-none rounded-lg border border-white/10 bg-[#0d1017] px-3 py-2 text-sm leading-6 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  )
+}
+
+function EventMeta({ event }: { event: EventRecord }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <span className="rounded bg-cyan-300/10 px-2 py-1 text-cyan-100">{event.source}</span>
+      <span>{event.event_type}</span>
+      <span>{formatDate(event.created_at)}</span>
+    </div>
+  )
+}
+
+function StorageRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="text-right text-slate-300">{value}</dd>
+    </div>
+  )
+}
+
+function LoadingLine({ label }: { label: string }) {
+  return (
+    <div className="mt-5 flex items-center gap-2 text-sm text-slate-400">
+      <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" />
+      {label}
+    </div>
+  )
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400">
+        <Inbox size={22} aria-hidden="true" />
+      </div>
+      <h3 className="mt-4 text-sm font-semibold text-white">{title}</h3>
+      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{description}</p>
+    </div>
   )
 }
 
