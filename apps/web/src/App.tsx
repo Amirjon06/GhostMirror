@@ -98,6 +98,7 @@ function downloadEventExport(payload: EventExport) {
 function App() {
   const queryClient = useQueryClient()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const contentScrollRef = useRef<HTMLDivElement | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>('dashboard')
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [source, setSource] = useState('manual')
@@ -231,6 +232,20 @@ function App() {
     setIsEditingSelectedEvent(false)
   }, [selectedEventId])
 
+  useEffect(() => {
+    const contentScroller = contentScrollRef.current
+    if (contentScroller) {
+      if (typeof contentScroller.scrollTo === 'function') {
+        contentScroller.scrollTo({ top: 0 })
+      } else {
+        contentScroller.scrollTop = 0
+      }
+    }
+
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [activeView])
+
   function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canCreate) {
@@ -313,9 +328,9 @@ function App() {
         : 'No events stored yet'
 
   return (
-    <main className="min-h-screen bg-[#090b10] text-slate-100">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-[#0d1017]/95 px-5 py-6 lg:flex lg:flex-col">
+    <main className="h-screen overflow-hidden bg-[#090b10] text-slate-100">
+      <div className="flex h-screen overflow-hidden">
+        <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1017]/95 px-5 py-6 lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
             <LogoMark />
             <div>
@@ -353,8 +368,8 @@ function App() {
           </div>
         </aside>
 
-        <section className="flex min-w-0 flex-1 flex-col">
-          <header className="relative z-10 border-b border-white/10 bg-[#090b10]/90 px-4 py-4 backdrop-blur md:px-8">
+        <section className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="relative z-10 shrink-0 border-b border-white/10 bg-[#090b10]/90 px-4 py-4 backdrop-blur md:px-8">
             <div className="mx-auto flex w-full max-w-7xl items-center gap-4">
               <div className="flex items-center gap-3 lg:hidden">
                 <LogoMark compact />
@@ -429,7 +444,7 @@ function App() {
             </div>
           </header>
 
-          <div className="flex-1 px-4 py-6 md:px-8">
+          <div ref={contentScrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
             <div className="mx-auto w-full max-w-7xl">
               {activeView === 'dashboard' ? (
                 <DashboardView
@@ -561,12 +576,12 @@ function LogoMark({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className={`relative flex ${size} items-center justify-center overflow-hidden rounded-xl border border-cyan-300/30 bg-[#0b1822] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)]`}
+      className={`relative flex ${size} items-center justify-center overflow-hidden rounded-xl border border-cyan-300/35 bg-[#0b1822] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)]`}
       aria-hidden="true"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(34,211,238,0.35),transparent_34%),radial-gradient(circle_at_75%_80%,rgba(168,85,247,0.22),transparent_38%)]" />
-      <span className="absolute left-2 top-2 h-7 w-3 rounded-full border border-cyan-200/30" />
-      <span className="absolute right-2 bottom-2 h-7 w-3 rounded-full border border-violet-200/30" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.24),rgba(168,85,247,0.16)_52%,rgba(15,23,42,0.1))]" />
+      <span className="absolute inset-2 rounded-lg border border-white/10" />
+      <span className="absolute bottom-2 top-2 left-1/2 w-px bg-cyan-100/25" />
       <BrainCircuit size={compact ? 19 : 23} className="relative" />
     </div>
   )
