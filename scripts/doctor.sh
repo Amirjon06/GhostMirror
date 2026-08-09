@@ -51,6 +51,12 @@ else
   warn "Docker CLI is not installed"
 fi
 
+if command -v rustc >/dev/null 2>&1 && command -v cargo >/dev/null 2>&1; then
+  pass "Rust toolchain is installed: $(rustc --version)"
+else
+  warn "Rust toolchain is not installed; it is required for desktop packaging"
+fi
+
 if [ -x "$ROOT_DIR/.venv/bin/python" ]; then
   pass "Backend virtual environment exists"
 else

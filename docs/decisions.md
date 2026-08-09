@@ -34,6 +34,8 @@ Status: accepted
 
 Tauri packaging is planned, but the current application runs as a web app plus local API. This keeps the storage and event API stable before adding desktop distribution.
 
+The desktop shell should wrap the existing React dashboard instead of replacing the API and database design.
+
 ## Start Ingestion With A CLI Command
 
 Status: accepted

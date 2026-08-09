@@ -51,6 +51,7 @@ Requirements:
 - Node.js LTS
 - npm
 - Python 3.11+
+- Rust toolchain for future desktop packaging
 
 Install and run the application:
 
@@ -197,6 +198,7 @@ tests/              Backend tests
 - [API](docs/api.md)
 - [Architecture](docs/architecture.md)
 - [Decisions](docs/decisions.md)
+- [Desktop Packaging](docs/desktop.md)
 - [Roadmap](docs/roadmap.md)
 - [Usage](docs/usage.md)
 
