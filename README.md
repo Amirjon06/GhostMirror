@@ -1,126 +1,121 @@
 # GhostMirror
 
-GhostMirror is a local development activity dashboard for capturing, storing, searching, and reviewing workflow events. It runs locally, stores data in SQLite, and exposes a FastAPI service used by a React dashboard.
+GhostMirror is a local-first developer activity dashboard for capturing, storing, searching, and reviewing workflow events. It uses a FastAPI backend, SQLite persistence, and a React dashboard to make local clipboard and filesystem activity easier to inspect.
 
-The project focuses on a practical event pipeline: local ingestion, structured persistence, keyword and semantic search, API access, dashboard views, tests, and CI.
+The project includes event ingestion, structured persistence, keyword search, local semantic search, import/export, activity summaries, monitor controls, automated tests, CI workflows, and a Tauri desktop app bundle for macOS.
 
-## Download
+## Features
 
-The latest packaged macOS app bundle is available from the GitHub releases page:
+- Store structured events with source, type, title, content, metadata, and timestamps.
+- Create, list, inspect, update, delete, import, and export events.
+- Search event titles and content with SQLite FTS5.
+- Run local semantic search over stored event embeddings.
+- Filter activity by event source and event type.
+- Capture clipboard text and filesystem text snapshots.
+- Review event counts, source statistics, recent activity, and event details in the dashboard.
+- Run the dashboard in a browser or as a Tauri desktop app bundle.
 
-- [GhostMirror releases](https://github.com/Amirjon06/GhostMirror/releases)
-- [GhostMirror v0.2.0 macOS arm64 zip](https://github.com/Amirjon06/GhostMirror/releases/download/v0.2.0/GhostMirror_0.2.0_macos_arm64.zip)
+## Architecture
 
-The desktop app connects to the local FastAPI service. Start the API before opening the app:
+GhostMirror runs as a local application with two main parts:
 
-```bash
-./scripts/api.sh
-```
-
-## What It Does
-
-- Stores structured events with source, type, title, content, metadata, and timestamps.
-- Supports event create, list, detail, update, delete, import, and export.
-- Provides keyword search over event title and content with SQLite FTS5.
-- Provides local semantic search over stored event embeddings.
-- Filters events by source and event type.
-- Captures clipboard text as `clipboard` events.
-- Captures filesystem text snapshots as `filesystem` events.
-- Provides dashboard controls for starting and stopping local capture monitors.
-- Shows event summaries, source counts, recent activity, and event detail views.
-- Includes a Tauri desktop app bundle for running the dashboard in a native window.
-
-## How It Works
-
-GhostMirror runs as two local services:
-
-- The React dashboard in `apps/web`.
-- The FastAPI backend in `backend/app`.
+- `backend/app`: FastAPI service for event APIs, ingestion controls, persistence, search, and monitor state.
+- `apps/web`: React and TypeScript dashboard built with Vite, Tailwind CSS, Zustand, and TanStack Query.
 
 Runtime flow:
 
-1. Local ingestion commands or dashboard actions create events.
+1. Clipboard, filesystem, or dashboard actions create events.
 2. FastAPI validates requests with Pydantic schemas.
-3. Route handlers delegate database work to service modules.
-4. SQLAlchemy persists events in SQLite.
-5. SQLite FTS5 keeps title and content searchable.
-6. Local event embeddings support semantic search by cosine similarity.
-7. The React dashboard reads API data with TanStack Query and renders the local activity views.
-
-## Backend Design
-
-The backend separates HTTP routing, validation, persistence, and business logic:
-
-- `backend/app/api` contains FastAPI route handlers.
-- `backend/app/schemas` contains Pydantic request and response models.
-- `backend/app/services` contains event, ingestion, and monitor logic.
-- `backend/app/models` contains SQLAlchemy models.
-- `backend/app/db` contains the engine, session factory, and database setup.
-- `backend/alembic` contains schema migrations.
-
-The event API supports CRUD operations, stats endpoints, import/export, keyword search, semantic search, filters, and monitor control. The application initializes the local database on startup for development use, while migrations define the durable schema.
+3. Service modules handle event persistence, search indexing, import/export, and monitor state.
+4. SQLAlchemy stores data in SQLite.
+5. SQLite FTS5 indexes event title and content for keyword search.
+6. Local embeddings are stored for semantic search.
+7. The React dashboard reads API data and renders activity views.
 
 ## Tech Stack
 
 | Area | Tools |
 | ---- | ----- |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, TanStack Query |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| State and API | Zustand, TanStack Query |
 | Backend | Python, FastAPI, Pydantic |
-| Database | SQLite, SQLAlchemy, Alembic, FTS5 |
-| Testing | pytest, Vitest, Playwright |
+| Database | SQLite, SQLAlchemy, Alembic |
+| Search | SQLite FTS5, local event embeddings |
 | Desktop | Tauri |
-| Tooling | Docker Compose, GitHub Actions |
+| Testing | pytest, Vitest, Playwright |
+| DevOps | Docker Compose, GitHub Actions |
 
-## Local Development
+## Installation
 
 Requirements:
 
-- Node.js LTS
-- npm
+- Node.js LTS and npm
 - Python 3.11+
+- Rust toolchain for desktop builds
 - Docker optional
 
-Set up and run:
+Clone and install dependencies:
 
 ```bash
+git clone https://github.com/Amirjon06/GhostMirror.git
+cd GhostMirror
 ./scripts/doctor.sh
 ./scripts/setup.sh
+```
+
+Run the API and dashboard:
+
+```bash
 ./scripts/dev.sh
 ```
 
 The API runs at `http://127.0.0.1:8000`.
-The web app runs at `http://127.0.0.1:5173`.
+The dashboard runs at `http://127.0.0.1:5173`.
 
-Run with clipboard monitoring:
+## Usage
+
+Start the local API only:
+
+```bash
+./scripts/api.sh
+```
+
+Start the web dashboard with clipboard monitoring:
 
 ```bash
 ./scripts/monitor.sh
 ```
 
-Run with clipboard and filesystem monitoring:
+Start clipboard and filesystem monitoring:
 
 ```bash
 ./scripts/monitor.sh /path/to/workspace
 ```
 
-Run checks:
+Create an event through the API:
 
 ```bash
-./scripts/check.sh
-RUN_E2E=1 ./scripts/check.sh
+curl -X POST http://127.0.0.1:8000/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "manual",
+    "event_type": "note",
+    "title": "Debug note",
+    "content": "Investigated a local API issue.",
+    "metadata": {"area": "backend"}
+  }'
 ```
 
-Run the semantic search benchmark with a 500-event sample dataset:
+Search stored events:
 
 ```bash
-./scripts/benchmark_semantic_search.py
+curl "http://127.0.0.1:8000/events?q=api&source=manual"
 ```
 
-Run the desktop shell in development:
+Run semantic search:
 
 ```bash
-cd apps/web
-npm run desktop:dev
+curl "http://127.0.0.1:8000/events/search/semantic?q=backend%20debugging"
 ```
 
 Run the packaged desktop app with the local API:
@@ -130,20 +125,23 @@ Run the packaged desktop app with the local API:
 open apps/web/src-tauri/target/release/bundle/macos/GhostMirror.app
 ```
 
-Build the desktop app bundle:
+## Desktop Release
+
+A packaged macOS arm64 app bundle is available on the releases page:
+
+- [GhostMirror releases](https://github.com/Amirjon06/GhostMirror/releases)
+- [GhostMirror v0.2.0 macOS arm64 zip](https://github.com/Amirjon06/GhostMirror/releases/download/v0.2.0/GhostMirror_0.2.0_macos_arm64.zip)
+
+The current desktop app connects to the local FastAPI service. Start the API with `./scripts/api.sh` before opening the app.
+
+Build the desktop app locally:
 
 ```bash
 cd apps/web
 npm run desktop:build
 ```
 
-Run with Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-## API Surface
+## API
 
 ```text
 GET    /health
@@ -165,62 +163,55 @@ POST   /monitors/filesystem/start
 POST   /monitors/filesystem/stop
 ```
 
-Event list query parameters:
+More details are available in [docs/api.md](docs/api.md).
 
-```text
-q
-source
-event_type
-limit
-offset
-```
+## Testing
 
-Example:
+Run the full local validation suite:
 
 ```bash
-curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
+./scripts/check.sh
 ```
 
-## Repository Layout
+Run browser smoke tests as part of the validation suite:
+
+```bash
+RUN_E2E=1 ./scripts/check.sh
+```
+
+Run the semantic search benchmark:
+
+```bash
+./scripts/benchmark_semantic_search.py
+```
+
+## Repository Structure
 
 ```text
 .github/workflows/  GitHub Actions workflows
-apps/web/           React dashboard
-backend/            FastAPI application and migrations
+apps/web/           React dashboard and Tauri desktop shell
+backend/            FastAPI application and Alembic migrations
 data/               Local SQLite data
-docs/               Project documentation
-scripts/            Local setup and development scripts
-tests/              Backend tests
+docs/               API, architecture, roadmap, and usage documentation
+scripts/            Setup, development, monitor, and validation scripts
+tests/              Backend test suite
 ```
-
-## Validation
-
-The project includes:
-
-- Backend API and ingestion tests with pytest.
-- Frontend unit tests with Vitest.
-- Browser smoke coverage with Playwright.
-- GitHub Actions workflows for backend and frontend validation.
 
 ## Documentation
 
-- [API](docs/api.md)
 - [Architecture](docs/architecture.md)
-- [Decisions](docs/decisions.md)
+- [API](docs/api.md)
 - [Desktop Packaging](docs/desktop.md)
+- [Decisions](docs/decisions.md)
 - [Roadmap](docs/roadmap.md)
 - [Usage](docs/usage.md)
 
-## Roadmap
+## Limitations
 
-- [x] Application foundation
-- [x] Local event persistence
-- [x] Event API and dashboard
-- [x] SQLite keyword search
-- [x] Clipboard and filesystem ingestion
-- [x] Import and export
-- [x] Dashboard capture controls
-- [x] Tests and CI
-- [x] Semantic retrieval
-- [x] Desktop shell scaffold
-- [x] Desktop app bundle
+- The packaged desktop app does not currently bundle the FastAPI backend as a sidecar.
+- The macOS release is an app bundle zip, not a DMG installer.
+- Semantic search uses a local deterministic embedding implementation, not an external model provider.
+
+## License
+
+No license file is currently included. Add a license before distributing or allowing reuse outside the repository owner.
