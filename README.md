@@ -4,6 +4,19 @@ GhostMirror is a local development activity dashboard for capturing, storing, se
 
 The project focuses on a practical event pipeline: local ingestion, structured persistence, keyword and semantic search, API access, dashboard views, tests, and CI.
 
+## Download
+
+The latest packaged macOS app bundle is available from the GitHub releases page:
+
+- [GhostMirror releases](https://github.com/Amirjon06/GhostMirror/releases)
+- [GhostMirror v0.2.0 macOS arm64 zip](https://github.com/Amirjon06/GhostMirror/releases/download/v0.2.0/GhostMirror_0.2.0_macos_arm64.zip)
+
+The desktop app connects to the local FastAPI service. Start the API before opening the app:
+
+```bash
+./scripts/api.sh
+```
+
 ## What It Does
 
 - Stores structured events with source, type, title, content, metadata, and timestamps.
@@ -211,4 +224,3 @@ The project includes:
 - [x] Semantic retrieval
 - [x] Desktop shell scaffold
 - [x] Desktop app bundle
-- [ ] Desktop installer and API sidecar

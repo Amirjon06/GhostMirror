@@ -6,6 +6,12 @@ GhostMirror includes a Tauri desktop shell around the React dashboard. The curre
 
 The desktop app scaffold is implemented in `apps/web/src-tauri`.
 
+The packaged macOS app bundle can be downloaded from:
+
+```text
+https://github.com/Amirjon06/GhostMirror/releases/download/v0.2.0/GhostMirror_0.2.0_macos_arm64.zip
+```
+
 The development command starts the FastAPI API and Vite dashboard for the Tauri window:
 
 ```bash
@@ -44,7 +50,7 @@ Current responsibilities:
 - Keep SQLite data on the local machine.
 - Build a macOS `.app` bundle.
 
-The packaged desktop app still expects the FastAPI service to be available locally. Building a DMG installer and supervising the Python API as a desktop sidecar are future work.
+The packaged desktop app still expects the FastAPI service to be available locally. A DMG installer and bundled API sidecar are not included in the current release.
 
 ## Local Requirements
 
