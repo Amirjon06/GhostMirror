@@ -1,38 +1,31 @@
 # GhostMirror
 
-GhostMirror is a local development activity dashboard. It stores structured events in SQLite and provides a FastAPI API with a React dashboard for viewing, creating, searching, filtering, and deleting events.
+GhostMirror is a local development activity dashboard. It stores structured workflow events in SQLite and provides a FastAPI API with a React dashboard for viewing, searching, filtering, creating, updating, deleting, importing, and exporting events.
 
-## Current Functionality
+The current version runs as a local web application. Desktop packaging is planned.
 
-- React and TypeScript web app in `apps/web`.
-- FastAPI service in `backend`.
-- SQLite event storage through SQLAlchemy.
-- Alembic migration for the `events` table.
-- SQLite FTS5 index for event title and content search.
-- Clipboard ingestion command for capturing copied text as events.
-- Filesystem ingestion command for capturing text file snapshots as events.
-- Demo seed command for creating local sample events.
-- Event API for create, list, read, update, delete, export, import, keyword search, source filtering, event type filtering, and summary counts.
-- Dashboard UI connected to the event API, including summary cards, activity counts, source counts, event detail, and timeline views.
-- Backend pytest coverage for health, event lifecycle, validation, search, and filters.
-- Frontend Vitest coverage for the event API client and dashboard rendering.
-- Playwright browser smoke test for the dashboard.
-- GitHub Actions workflows for backend tests and frontend validation.
-- Docker Compose setup for local development.
-- Local setup, development, and check scripts.
+## Current Capabilities
 
-## Planned Work
-
-- Semantic retrieval.
-- Desktop packaging with Tauri.
+- Store events with source, type, title, content, metadata, and timestamps.
+- Create, list, inspect, update, and delete events.
+- Search event title and content with SQLite FTS5.
+- Filter events by source and event type.
+- Import and export events as JSON.
+- Capture clipboard text as local events.
+- Capture filesystem text snapshots as local events.
+- Start and stop capture monitors from the dashboard.
+- View summary counts, source counts, recent events, and activity history.
+- Run backend tests, frontend tests, browser smoke tests, and CI checks.
 
 ## Architecture
 
-- `apps/web` contains the React dashboard. It calls the FastAPI service over HTTP.
-- `backend/app` contains the API routes, settings, database session, SQLAlchemy models, schemas, and services.
-- `backend/alembic` contains database migrations.
-- `tests` contains backend API tests.
-- SQLite is the current database.
+- `apps/web` contains the React and TypeScript dashboard.
+- `backend/app` contains the FastAPI application, API routes, schemas, services, settings, and database setup.
+- `backend/alembic` contains SQLite migrations.
+- `tests` contains backend API and ingestion tests.
+- `data` contains the local SQLite database when running the app locally.
+
+The web app calls the FastAPI service over HTTP. The backend persists events in SQLite through SQLAlchemy and keeps a SQLite FTS5 index for keyword search.
 
 ## Tech Stack
 
@@ -40,9 +33,9 @@ GhostMirror is a local development activity dashboard. It stores structured even
 | ---- | ----- |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, TanStack Query |
 | Backend | Python, FastAPI, Pydantic |
-| Database | SQLite, SQLAlchemy, Alembic |
-| Testing | pytest |
-| CI | GitHub Actions |
+| Database | SQLite, SQLAlchemy, Alembic, FTS5 |
+| Testing | pytest, Vitest, Playwright |
+| Tooling | Docker Compose, GitHub Actions |
 
 ## Local Development
 
@@ -51,9 +44,10 @@ Requirements:
 - Node.js LTS
 - npm
 - Python 3.11+
-- Rust toolchain for future desktop packaging
+- Docker optional
+- Rust optional, required later for Tauri packaging
 
-Install and run the application:
+Set up and run:
 
 ```bash
 ./scripts/doctor.sh
@@ -61,111 +55,56 @@ Install and run the application:
 ./scripts/dev.sh
 ```
 
-The API is available at `http://127.0.0.1:8000`, and the web app is available at `http://127.0.0.1:5173`.
+The API runs at `http://127.0.0.1:8000`.
+The web app runs at `http://127.0.0.1:5173`.
 
-Run the dashboard with clipboard monitoring:
+Run with clipboard monitoring:
 
 ```bash
 ./scripts/monitor.sh
 ```
 
-Run the dashboard with clipboard and filesystem monitoring:
+Run with clipboard and filesystem monitoring:
 
 ```bash
 ./scripts/monitor.sh /path/to/workspace
-```
-
-You can also use Make:
-
-```bash
-make doctor
-make setup
-make dev
-make monitor
 ```
 
 Run checks:
 
 ```bash
 ./scripts/check.sh
-```
-
-Run checks with the browser smoke test:
-
-```bash
 RUN_E2E=1 ./scripts/check.sh
 ```
 
-Capture clipboard events:
-
-```bash
-cd backend
-python -m app.cli.clipboard
-```
-
-Capture the current clipboard value once:
-
-```bash
-cd backend
-python -m app.cli.clipboard --once
-```
-
-Capture filesystem events once:
-
-```bash
-cd backend
-python -m app.cli.filesystem /path/to/workspace --once
-```
-
-Create demo events:
-
-```bash
-cd backend
-python -m app.cli.seed_demo
-```
-
-Run frontend checks:
-
-```bash
-cd apps/web
-npm run lint
-npm run test
-npm run test:e2e
-npm run build
-```
-
-Run the application with Docker Compose:
+Run with Docker Compose:
 
 ```bash
 docker compose up --build
 ```
 
-The API is available at `http://127.0.0.1:8000`, and the web app is available at `http://127.0.0.1:5173`.
-
 ## API
 
-Health:
-
 ```text
-GET /health
-```
-
-Events:
-
-```text
-POST /events
-GET /events
-GET /events/stats/summary
-GET /events/stats/activity
-GET /events/stats/sources
-GET /events/export
-POST /events/import
-GET /events/{id}
-PATCH /events/{id}
+GET    /health
+POST   /events
+GET    /events
+GET    /events/stats/summary
+GET    /events/stats/activity
+GET    /events/stats/sources
+GET    /events/export
+POST   /events/import
+GET    /events/{id}
+PATCH  /events/{id}
 DELETE /events/{id}
+GET    /monitors/status
+POST   /monitors/clipboard/start
+POST   /monitors/clipboard/stop
+POST   /monitors/filesystem/start
+POST   /monitors/filesystem/stop
 ```
 
-Supported event list query parameters:
+Event list query parameters:
 
 ```text
 q
@@ -187,9 +126,9 @@ curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
 .github/workflows/  GitHub Actions workflows
 apps/web/           React dashboard
 backend/            FastAPI application and migrations
-data/               Local SQLite data directory
+data/               Local SQLite data
 docs/               Project documentation
-scripts/            Local setup and development commands
+scripts/            Local setup and development scripts
 tests/              Backend tests
 ```
 
@@ -206,16 +145,11 @@ tests/              Backend tests
 
 - [x] Application foundation
 - [x] Local event persistence
-- [x] Event API tests
-- [x] Dashboard API integration
-- [x] Backend and frontend CI
-- [x] SQLite FTS5 search
-- [x] Clipboard ingestion
-- [x] Filesystem ingestion
-- [x] Timeline and detail views
-- [x] Frontend API client tests
-- [x] Frontend component tests
-- [x] Browser smoke test
-- [x] Demo seed command
+- [x] Event API and dashboard
+- [x] SQLite keyword search
+- [x] Clipboard and filesystem ingestion
+- [x] Import and export
+- [x] Dashboard capture controls
+- [x] Tests and CI
 - [ ] Semantic retrieval
 - [ ] Desktop packaging
