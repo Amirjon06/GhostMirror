@@ -21,6 +21,100 @@ body {
   background: #090b10;
 }
 
+.gm-shell,
+.gm-shell * {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+main.gm-light {
+  background: #f6f8fb !important;
+  color: #0f172a !important;
+}
+
+main.gm-light > div,
+.gm-light header,
+.gm-light aside,
+.gm-light [class*="090b10"],
+.gm-light [class*="0d1017"],
+.gm-light [class*="111620"] {
+  background: #ffffff !important;
+}
+
+.gm-light header {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.gm-light [class*="white/[0.03]"],
+.gm-light [class*="white/[0.04]"],
+.gm-light [class*="hover:bg-white/5"]:hover,
+.gm-light [class*="hover:bg-white/10"]:hover {
+  background: #f1f5f9 !important;
+}
+
+.gm-light [class*="cyan-300/10"],
+.gm-light [class*="hover:bg-cyan-300/10"]:hover {
+  background: #e0f7fb !important;
+}
+
+.gm-light [class*="cyan-300/[0.06]"] {
+  background: #ecfeff !important;
+}
+
+.gm-light [class*="white/10"] {
+  border-color: #d8e0ea !important;
+}
+
+.gm-light [class*="ring-cyan-300/20"] {
+  --tw-ring-color: rgba(8, 145, 178, 0.22) !important;
+}
+
+.gm-light [class*="text-white"],
+.gm-light [class*="text-slate-100"],
+.gm-light [class*="text-slate-200"],
+.gm-light [class*="text-slate-300"] {
+  color: #0f172a !important;
+}
+
+.gm-light [class*="text-slate-400"],
+.gm-light [class*="text-slate-500"] {
+  color: #64748b !important;
+}
+
+.gm-light [class*="text-cyan-100"],
+.gm-light [class*="text-cyan-50"],
+.gm-light [class*="text-cyan-200"] {
+  color: #0e7490 !important;
+}
+
+.gm-light [class*="text-emerald-300"] {
+  color: #047857 !important;
+}
+
+.gm-light input,
+.gm-light textarea,
+.gm-light select {
+  color: #0f172a;
+}
+
+.gm-light input::placeholder,
+.gm-light textarea::placeholder {
+  color: #94a3b8;
+}
+
+button,
+button:not(:disabled),
+a,
+select,
+[role="button"] {
+  cursor: pointer;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;

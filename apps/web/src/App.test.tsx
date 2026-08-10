@@ -354,4 +354,18 @@ describe('dashboard', () => {
     expect(screen.getByText('Latest event')).toBeInTheDocument()
     expect(screen.getAllByText('Event API').length).toBeGreaterThan(0)
   })
+
+  it('toggles the sidebar and color theme controls', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+
+    renderDashboard()
+
+    await screen.findByRole('heading', { name: 'Dashboard' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to light theme' }))
+    expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeInTheDocument()
+  })
 })

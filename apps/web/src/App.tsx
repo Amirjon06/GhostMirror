@@ -5,7 +5,6 @@ import {
   Activity,
   AlertCircle,
   Bell,
-  BrainCircuit,
   CheckCircle2,
   Clock3,
   Database,
@@ -17,6 +16,9 @@ import {
   Inbox,
   LayoutDashboard,
   Loader2,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   RefreshCw,
@@ -24,6 +26,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
   X,
@@ -43,6 +46,7 @@ import {
 import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload } from './lib/types'
 
 type ActiveView = 'dashboard' | 'events' | 'search' | 'sources' | 'storage'
+type ThemeMode = 'dark' | 'light'
 
 const navItems: Array<{ id: ActiveView; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -100,6 +104,8 @@ function App() {
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>('dashboard')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [source, setSource] = useState('manual')
   const [eventType, setEventType] = useState('note')
@@ -326,45 +332,66 @@ function App() {
       : hasActiveSearch
         ? 'No events match the current search'
         : 'No events stored yet'
+  const isLightTheme = themeMode === 'light'
+  const shellThemeClass = isLightTheme ? 'gm-shell gm-light' : 'gm-shell gm-dark'
 
   return (
-    <main className="h-screen overflow-hidden bg-[#090b10] text-slate-100">
+    <main className={`${shellThemeClass} h-screen overflow-hidden bg-[#090b10] text-slate-100`}>
       <div className="flex h-screen overflow-hidden">
-        <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1017]/95 px-5 py-6 lg:flex lg:flex-col">
-          <div className="flex items-center gap-3">
-            <LogoMark />
-            <div>
+        <aside
+          className={`hidden h-screen shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1017]/95 py-6 lg:flex lg:flex-col ${
+            sidebarCollapsed ? 'w-24 px-4' : 'w-72 px-5'
+          }`}
+        >
+          <div className={sidebarCollapsed ? 'grid justify-items-center gap-3' : 'flex items-center gap-3'}>
+            <LogoMark compact={sidebarCollapsed} />
+            <div className={sidebarCollapsed ? 'sr-only' : ''}>
               <p className="text-sm font-semibold text-white">GhostMirror</p>
               <p className="text-xs text-slate-400">Local activity console</p>
             </div>
+            <button
+              className={`${sidebarCollapsed ? '' : 'ml-auto'} flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100`}
+              type="button"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            >
+              {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
+            </button>
           </div>
 
           <nav className="mt-8 space-y-1" aria-label="Primary navigation">
             {navItems.map((item) => (
               <button
                 key={item.id}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                className={`flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm transition ${
                   activeView === item.id
                     ? 'bg-cyan-300/10 text-cyan-50 ring-1 ring-inset ring-cyan-300/20'
                     : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
-                }`}
+                } ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
                 type="button"
+                aria-label={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? item.label : undefined}
                 onClick={() => setActiveView(item.id)}
               >
                 <item.icon size={18} aria-hidden="true" />
-                {item.label}
+                <span className={sidebarCollapsed ? 'sr-only' : ''}>{item.label}</span>
               </button>
             ))}
           </nav>
 
-          <div className="mt-8 rounded-lg border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-              <ShieldCheck size={16} className="text-emerald-300" aria-hidden="true" />
-              Local storage
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Events stay on this machine unless exported manually.
-            </p>
+          <div className="mt-8 grid gap-3">
+            {!sidebarCollapsed ? (
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                  <ShieldCheck size={16} className="text-emerald-300" aria-hidden="true" />
+                  Local storage
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Events stay on this machine unless exported manually.
+                </p>
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -386,60 +413,72 @@ function App() {
                   placeholder="Search event titles and content..."
                 />
               </label>
-              <div className="relative">
+              <div className="flex shrink-0 items-center gap-2">
                 <button
-                  className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
                   type="button"
-                  aria-label="Notifications"
-                  aria-expanded={notificationOpen}
-                  onClick={() => setNotificationOpen((open) => !open)}
+                  aria-label={isLightTheme ? 'Switch to dark theme' : 'Switch to light theme'}
+                  title={isLightTheme ? 'Switch to dark theme' : 'Switch to light theme'}
+                  onClick={() => setThemeMode((mode) => (mode === 'dark' ? 'light' : 'dark'))}
                 >
-                  <Bell size={18} aria-hidden="true" />
-                  {eventsQuery.isError ? (
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-300" />
-                  ) : null}
+                  {isLightTheme ? <Moon size={17} aria-hidden="true" /> : <Sun size={17} aria-hidden="true" />}
                 </button>
-                {notificationOpen ? (
-                  <div className="absolute right-0 top-14 w-80 rounded-lg border border-white/10 bg-[#111620] p-4 shadow-2xl shadow-black/40">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-sm font-semibold text-white">Notifications</h2>
-                      <button
-                        className="text-slate-500 transition hover:text-slate-200"
-                        type="button"
-                        aria-label="Close notifications"
-                        onClick={() => setNotificationOpen(false)}
-                      >
-                        <X size={16} aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      <StatusRow
-                        label="Event API"
-                        value={eventsQuery.isError ? 'Unavailable' : eventsQuery.isLoading ? 'Checking' : 'Available'}
-                        healthy={!eventsQuery.isError}
-                      />
-                      <StatusRow label="SQLite storage" value={eventsQuery.isError ? 'Unknown' : 'Available'} healthy={!eventsQuery.isError} />
-                      {latestEvent ? (
+
+                <div className="relative">
+                  <button
+                    className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+                    type="button"
+                    aria-label="Notifications"
+                    aria-expanded={notificationOpen}
+                    onClick={() => setNotificationOpen((open) => !open)}
+                  >
+                    <Bell size={17} aria-hidden="true" />
+                    {eventsQuery.isError ? (
+                      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-300" />
+                    ) : null}
+                  </button>
+                  {notificationOpen ? (
+                    <div className="absolute right-0 top-12 w-80 rounded-lg border border-white/10 bg-[#111620] p-4 shadow-2xl shadow-black/40">
+                      <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-semibold text-white">Notifications</h2>
                         <button
-                          className="w-full rounded-lg border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                          className="text-slate-500 transition hover:text-slate-200"
                           type="button"
-                          onClick={() => {
-                            setSelectedEventId(latestEvent.id)
-                            setActiveView('events')
-                            setNotificationOpen(false)
-                          }}
+                          aria-label="Close notifications"
+                          onClick={() => setNotificationOpen(false)}
                         >
-                          <span className="block text-xs text-slate-500">Latest event</span>
-                          <span className="mt-1 block truncate text-sm font-medium text-white">{latestEvent.title}</span>
+                          <X size={16} aria-hidden="true" />
                         </button>
-                      ) : (
-                        <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-400">
-                          No event activity has been stored yet.
-                        </p>
-                      )}
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <StatusRow
+                          label="Event API"
+                          value={eventsQuery.isError ? 'Unavailable' : eventsQuery.isLoading ? 'Checking' : 'Available'}
+                          healthy={!eventsQuery.isError}
+                        />
+                        <StatusRow label="SQLite storage" value={eventsQuery.isError ? 'Unknown' : 'Available'} healthy={!eventsQuery.isError} />
+                        {latestEvent ? (
+                          <button
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                            type="button"
+                            onClick={() => {
+                              setSelectedEventId(latestEvent.id)
+                              setActiveView('events')
+                              setNotificationOpen(false)
+                            }}
+                          >
+                            <span className="block text-xs text-slate-500">Latest event</span>
+                            <span className="mt-1 block truncate text-sm font-medium text-white">{latestEvent.title}</span>
+                          </button>
+                        ) : (
+                          <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-400">
+                            No event activity has been stored yet.
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             </div>
           </header>
@@ -576,13 +615,10 @@ function LogoMark({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className={`relative flex ${size} items-center justify-center overflow-hidden rounded-xl border border-cyan-300/35 bg-[#0b1822] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.12)]`}
+      className={`flex ${size} items-center justify-center overflow-hidden rounded-xl shadow-[0_0_28px_rgba(34,211,238,0.12)]`}
       aria-hidden="true"
     >
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.24),rgba(168,85,247,0.16)_52%,rgba(15,23,42,0.1))]" />
-      <span className="absolute inset-2 rounded-lg border border-white/10" />
-      <span className="absolute bottom-2 top-2 left-1/2 w-px bg-cyan-100/25" />
-      <BrainCircuit size={compact ? 19 : 23} className="relative" />
+      <img className="h-full w-full" src="/ghostmirror-mark.svg" alt="" />
     </div>
   )
 }
@@ -633,7 +669,7 @@ function DashboardView({
         description="A compact overview of local event capture, API availability, and recent activity."
       />
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+      <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <div className="overflow-hidden rounded-lg border border-white/10 bg-[#111620]">
           <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-6 md:p-8">
             <div className="flex flex-wrap items-center gap-3">
@@ -738,7 +774,7 @@ function EventsView(props: {
         description="Create, inspect, update, import, export, and delete stored events."
       />
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="grid max-w-5xl gap-6">
         <section className="min-w-0 rounded-lg border border-white/10 bg-[#111620]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
             <div>
@@ -855,8 +891,8 @@ function SearchView({
         description="Search event titles and content, then narrow results by source or event type."
       />
 
-      <section className="rounded-lg border border-white/10 bg-[#111620]">
-        <div className="grid gap-4 border-b border-white/10 p-5 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
+      <section className="max-w-5xl rounded-lg border border-white/10 bg-[#111620]">
+        <div className="grid gap-4 border-b border-white/10 p-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px]">
           <label className="grid gap-2 text-sm text-slate-300">
             Query
             <input
@@ -871,7 +907,7 @@ function SearchView({
           <FilterSelect label="Type" value={eventTypeFilter} options={eventTypeOptions} emptyLabel="All types" onChange={onEventTypeFilterChange} />
 
           <button
-            className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2 xl:col-span-1"
             type="button"
             onClick={onClearSearchFilters}
             disabled={!hasActiveSearch}
@@ -932,7 +968,7 @@ function SourcesView({
         description="Review where stored events are coming from and jump into filtered search results."
       />
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid max-w-5xl items-start gap-6">
         <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
           <div className="flex items-center gap-2">
             <FolderGit2 size={18} className="text-cyan-200" aria-hidden="true" />
@@ -944,7 +980,7 @@ function SourcesView({
           ) : sourcesQueryIsLoading ? (
             <LoadingLine label="Loading sources" />
           ) : sourceStats.length > 0 ? (
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid gap-4">
               {sourceStats.map((source) => (
                 <button
                   key={source.source}
@@ -1012,7 +1048,7 @@ function StorageView({
         description="Manage local event data and move event history in or out of GhostMirror as JSON."
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid max-w-5xl gap-6">
         <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
           <div className="flex items-center gap-2">
             <HardDrive size={18} className="text-cyan-200" aria-hidden="true" />
