@@ -1,31 +1,48 @@
 # GhostMirror
 
-GhostMirror is a local development activity dashboard. It stores structured workflow events in SQLite and provides a FastAPI API with a React dashboard for viewing, searching, filtering, creating, updating, deleting, importing, and exporting events.
+GhostMirror is a local development activity dashboard for capturing, storing, searching, and reviewing workflow events. It runs locally, stores data in SQLite, and exposes a FastAPI service used by a React dashboard.
 
-The current version runs as a local web application. Desktop packaging is planned.
+The project focuses on a practical event pipeline: local ingestion, structured persistence, keyword search, API access, dashboard views, tests, and CI.
 
-## Current Capabilities
+## What It Does
 
-- Store events with source, type, title, content, metadata, and timestamps.
-- Create, list, inspect, update, and delete events.
-- Search event title and content with SQLite FTS5.
-- Filter events by source and event type.
-- Import and export events as JSON.
-- Capture clipboard text as local events.
-- Capture filesystem text snapshots as local events.
-- Start and stop capture monitors from the dashboard.
-- View summary counts, source counts, recent events, and activity history.
-- Run backend tests, frontend tests, browser smoke tests, and CI checks.
+- Stores structured events with source, type, title, content, metadata, and timestamps.
+- Supports event create, list, detail, update, delete, import, and export.
+- Provides keyword search over event title and content with SQLite FTS5.
+- Filters events by source and event type.
+- Captures clipboard text as `clipboard` events.
+- Captures filesystem text snapshots as `filesystem` events.
+- Provides dashboard controls for starting and stopping local capture monitors.
+- Shows event summaries, source counts, recent activity, and event detail views.
 
-## Architecture
+## How It Works
 
-- `apps/web` contains the React and TypeScript dashboard.
-- `backend/app` contains the FastAPI application, API routes, schemas, services, settings, and database setup.
-- `backend/alembic` contains SQLite migrations.
-- `tests` contains backend API and ingestion tests.
-- `data` contains the local SQLite database when running the app locally.
+GhostMirror runs as two local services:
 
-The web app calls the FastAPI service over HTTP. The backend persists events in SQLite through SQLAlchemy and keeps a SQLite FTS5 index for keyword search.
+- The React dashboard in `apps/web`.
+- The FastAPI backend in `backend/app`.
+
+Runtime flow:
+
+1. Local ingestion commands or dashboard actions create events.
+2. FastAPI validates requests with Pydantic schemas.
+3. Route handlers delegate database work to service modules.
+4. SQLAlchemy persists events in SQLite.
+5. SQLite FTS5 keeps title and content searchable.
+6. The React dashboard reads API data with TanStack Query and renders the local activity views.
+
+## Backend Design
+
+The backend separates HTTP routing, validation, persistence, and business logic:
+
+- `backend/app/api` contains FastAPI route handlers.
+- `backend/app/schemas` contains Pydantic request and response models.
+- `backend/app/services` contains event, ingestion, and monitor logic.
+- `backend/app/models` contains SQLAlchemy models.
+- `backend/app/db` contains the engine, session factory, and database setup.
+- `backend/alembic` contains schema migrations.
+
+The event API supports CRUD operations, stats endpoints, import/export, search, filters, and monitor control. The application initializes the local database on startup for development use, while migrations define the durable schema.
 
 ## Tech Stack
 
@@ -45,7 +62,6 @@ Requirements:
 - npm
 - Python 3.11+
 - Docker optional
-- Rust optional, required later for Tauri packaging
 
 Set up and run:
 
@@ -83,7 +99,7 @@ Run with Docker Compose:
 docker compose up --build
 ```
 
-## API
+## API Surface
 
 ```text
 GET    /health
@@ -131,6 +147,15 @@ docs/               Project documentation
 scripts/            Local setup and development scripts
 tests/              Backend tests
 ```
+
+## Validation
+
+The project includes:
+
+- Backend API and ingestion tests with pytest.
+- Frontend unit tests with Vitest.
+- Browser smoke coverage with Playwright.
+- GitHub Actions workflows for backend and frontend validation.
 
 ## Documentation
 
