@@ -62,3 +62,32 @@ export interface EventImportPayload {
 export interface EventImportResult {
   imported_events: number
 }
+
+export interface MonitorWorkerStatus {
+  name: 'clipboard' | 'filesystem'
+  running: boolean
+  interval_seconds: number | null
+  watch_path: string | null
+  include_hidden: boolean
+  events_created: number
+  last_event_id: number | null
+  last_checked_at: string | null
+  last_error: string | null
+  started_at: string | null
+  stopped_at: string | null
+}
+
+export interface MonitorStatus {
+  clipboard: MonitorWorkerStatus
+  filesystem: MonitorWorkerStatus
+}
+
+export interface ClipboardMonitorStartPayload {
+  interval_seconds: number
+}
+
+export interface FilesystemMonitorStartPayload {
+  path: string
+  interval_seconds: number
+  include_hidden: boolean
+}

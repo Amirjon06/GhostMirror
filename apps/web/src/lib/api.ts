@@ -9,6 +9,9 @@ import type {
   EventSourceStats,
   EventSummary,
   EventUpdatePayload,
+  ClipboardMonitorStartPayload,
+  FilesystemMonitorStartPayload,
+  MonitorStatus,
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
@@ -97,5 +100,35 @@ export function updateEvent(eventId: number, payload: EventUpdatePayload): Promi
 export function deleteEvent(eventId: number): Promise<void> {
   return request<void>(`/events/${eventId}`, {
     method: 'DELETE',
+  })
+}
+
+export function getMonitorStatus(): Promise<MonitorStatus> {
+  return request<MonitorStatus>('/monitors/status')
+}
+
+export function startClipboardMonitor(payload: ClipboardMonitorStartPayload): Promise<MonitorStatus> {
+  return request<MonitorStatus>('/monitors/clipboard/start', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function stopClipboardMonitor(): Promise<MonitorStatus> {
+  return request<MonitorStatus>('/monitors/clipboard/stop', {
+    method: 'POST',
+  })
+}
+
+export function startFilesystemMonitor(payload: FilesystemMonitorStartPayload): Promise<MonitorStatus> {
+  return request<MonitorStatus>('/monitors/filesystem/start', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function stopFilesystemMonitor(): Promise<MonitorStatus> {
+  return request<MonitorStatus>('/monitors/filesystem/stop', {
+    method: 'POST',
   })
 }

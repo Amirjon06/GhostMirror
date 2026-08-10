@@ -6,12 +6,14 @@ import {
   AlertCircle,
   Bell,
   CheckCircle2,
+  Clipboard,
   Clock3,
   Database,
   Download,
   Eye,
   FileSearch,
   FolderGit2,
+  FolderOpen,
   HardDrive,
   Inbox,
   LayoutDashboard,
@@ -21,11 +23,13 @@ import {
   PanelLeftOpen,
   Pencil,
   Plus,
+  Play,
   RefreshCw,
   Save,
   Search,
   ShieldCheck,
   Sparkles,
+  Square,
   Sun,
   Trash2,
   Upload,
@@ -38,12 +42,17 @@ import {
   exportEvents,
   getEventActivity,
   getEventSummary,
+  getMonitorStatus,
   importEvents,
   listEventSources,
   listEvents,
+  startClipboardMonitor,
+  startFilesystemMonitor,
+  stopClipboardMonitor,
+  stopFilesystemMonitor,
   updateEvent,
 } from './lib/api'
-import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload } from './lib/types'
+import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload, MonitorStatus, MonitorWorkerStatus } from './lib/types'
 
 type ActiveView = 'dashboard' | 'events' | 'search' | 'sources' | 'storage'
 type ThemeMode = 'dark' | 'light'
@@ -121,6 +130,7 @@ function App() {
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
   const [importFileError, setImportFileError] = useState(false)
+  const [filesystemMonitorPath, setFilesystemMonitorPath] = useState('')
 
   const eventListParams = useMemo(
     () => ({
@@ -149,6 +159,12 @@ function App() {
   const sourcesQuery = useQuery({
     queryKey: ['event-sources'],
     queryFn: listEventSources,
+  })
+
+  const monitorQuery = useQuery({
+    queryKey: ['monitor-status'],
+    queryFn: getMonitorStatus,
+    refetchInterval: 5000,
   })
 
   const createMutation = useMutation({
@@ -191,11 +207,47 @@ function App() {
     },
   })
 
+  const startClipboardMonitorMutation = useMutation({
+    mutationFn: () => startClipboardMonitor({ interval_seconds: 1 }),
+    onSuccess: async () => {
+      await invalidateMonitorQueries()
+      await invalidateEventQueries()
+    },
+  })
+
+  const stopClipboardMonitorMutation = useMutation({
+    mutationFn: stopClipboardMonitor,
+    onSuccess: async () => {
+      await invalidateMonitorQueries()
+      await invalidateEventQueries()
+    },
+  })
+
+  const startFilesystemMonitorMutation = useMutation({
+    mutationFn: startFilesystemMonitor,
+    onSuccess: async () => {
+      await invalidateMonitorQueries()
+      await invalidateEventQueries()
+    },
+  })
+
+  const stopFilesystemMonitorMutation = useMutation({
+    mutationFn: stopFilesystemMonitor,
+    onSuccess: async () => {
+      await invalidateMonitorQueries()
+      await invalidateEventQueries()
+    },
+  })
+
   async function invalidateEventQueries() {
     await queryClient.invalidateQueries({ queryKey: ['events'] })
     await queryClient.invalidateQueries({ queryKey: ['event-summary'] })
     await queryClient.invalidateQueries({ queryKey: ['event-activity'] })
     await queryClient.invalidateQueries({ queryKey: ['event-sources'] })
+  }
+
+  async function invalidateMonitorQueries() {
+    await queryClient.invalidateQueries({ queryKey: ['monitor-status'] })
   }
 
   const events = eventsQuery.data ?? emptyEvents
@@ -323,6 +375,19 @@ function App() {
   function selectSourceFilter(value: string) {
     setSourceFilter(value)
     setActiveView('search')
+  }
+
+  function handleStartFilesystemMonitor() {
+    const path = filesystemMonitorPath.trim()
+    if (!path || startFilesystemMonitorMutation.isPending) {
+      return
+    }
+
+    startFilesystemMonitorMutation.mutate({
+      path,
+      interval_seconds: 5,
+      include_hidden: false,
+    })
   }
 
   const eventListSummary = eventsQuery.isError
@@ -495,7 +560,24 @@ function App() {
                   activityQueryIsError={activityQuery.isError}
                   activityQueryIsLoading={activityQuery.isLoading}
                   maxActivityCount={maxActivityCount}
+                  monitorStatus={monitorQuery.data}
+                  monitorStatusIsLoading={monitorQuery.isLoading}
+                  monitorStatusIsError={monitorQuery.isError}
+                  filesystemMonitorPath={filesystemMonitorPath}
+                  startClipboardMonitorIsPending={startClipboardMonitorMutation.isPending}
+                  stopClipboardMonitorIsPending={stopClipboardMonitorMutation.isPending}
+                  startFilesystemMonitorIsPending={startFilesystemMonitorMutation.isPending}
+                  stopFilesystemMonitorIsPending={stopFilesystemMonitorMutation.isPending}
+                  startClipboardMonitorIsError={startClipboardMonitorMutation.isError}
+                  stopClipboardMonitorIsError={stopClipboardMonitorMutation.isError}
+                  startFilesystemMonitorIsError={startFilesystemMonitorMutation.isError}
+                  stopFilesystemMonitorIsError={stopFilesystemMonitorMutation.isError}
                   onOpenEvents={() => setActiveView('events')}
+                  onStartClipboardMonitor={() => startClipboardMonitorMutation.mutate()}
+                  onStopClipboardMonitor={() => stopClipboardMonitorMutation.mutate()}
+                  onStartFilesystemMonitor={handleStartFilesystemMonitor}
+                  onStopFilesystemMonitor={() => stopFilesystemMonitorMutation.mutate()}
+                  onSetFilesystemMonitorPath={setFilesystemMonitorPath}
                 />
               ) : null}
 
@@ -650,7 +732,24 @@ function DashboardView({
   activityQueryIsError,
   activityQueryIsLoading,
   maxActivityCount,
+  monitorStatus,
+  monitorStatusIsLoading,
+  monitorStatusIsError,
+  filesystemMonitorPath,
+  startClipboardMonitorIsPending,
+  stopClipboardMonitorIsPending,
+  startFilesystemMonitorIsPending,
+  stopFilesystemMonitorIsPending,
+  startClipboardMonitorIsError,
+  stopClipboardMonitorIsError,
+  startFilesystemMonitorIsError,
+  stopFilesystemMonitorIsError,
   onOpenEvents,
+  onStartClipboardMonitor,
+  onStopClipboardMonitor,
+  onStartFilesystemMonitor,
+  onStopFilesystemMonitor,
+  onSetFilesystemMonitorPath,
 }: {
   stats: Array<{ label: string; value: string; detail: string }>
   events: EventRecord[]
@@ -660,7 +759,24 @@ function DashboardView({
   activityQueryIsError: boolean
   activityQueryIsLoading: boolean
   maxActivityCount: number
+  monitorStatus: MonitorStatus | undefined
+  monitorStatusIsLoading: boolean
+  monitorStatusIsError: boolean
+  filesystemMonitorPath: string
+  startClipboardMonitorIsPending: boolean
+  stopClipboardMonitorIsPending: boolean
+  startFilesystemMonitorIsPending: boolean
+  stopFilesystemMonitorIsPending: boolean
+  startClipboardMonitorIsError: boolean
+  stopClipboardMonitorIsError: boolean
+  startFilesystemMonitorIsError: boolean
+  stopFilesystemMonitorIsError: boolean
   onOpenEvents: () => void
+  onStartClipboardMonitor: () => void
+  onStopClipboardMonitor: () => void
+  onStartFilesystemMonitor: () => void
+  onStopFilesystemMonitor: () => void
+  onSetFilesystemMonitorPath: (path: string) => void
 }) {
   return (
     <>
@@ -704,6 +820,25 @@ function DashboardView({
 
         <div className="grid gap-6">
           <SystemStatusCard eventsQueryIsError={eventsQueryIsError} eventsQueryIsLoading={eventsQueryIsLoading} />
+          <MonitorControlsCard
+            monitorStatus={monitorStatus}
+            isLoading={monitorStatusIsLoading}
+            isError={monitorStatusIsError}
+            filesystemPath={filesystemMonitorPath}
+            startClipboardIsPending={startClipboardMonitorIsPending}
+            stopClipboardIsPending={stopClipboardMonitorIsPending}
+            startFilesystemIsPending={startFilesystemMonitorIsPending}
+            stopFilesystemIsPending={stopFilesystemMonitorIsPending}
+            startClipboardIsError={startClipboardMonitorIsError}
+            stopClipboardIsError={stopClipboardMonitorIsError}
+            startFilesystemIsError={startFilesystemMonitorIsError}
+            stopFilesystemIsError={stopFilesystemMonitorIsError}
+            onStartClipboard={onStartClipboardMonitor}
+            onStopClipboard={onStopClipboardMonitor}
+            onStartFilesystem={onStartFilesystemMonitor}
+            onStopFilesystem={onStopFilesystemMonitor}
+            onSetFilesystemPath={onSetFilesystemMonitorPath}
+          />
           <RecentPreviewCard events={events} onOpenEvents={onOpenEvents} />
         </div>
       </section>
@@ -1482,6 +1617,220 @@ function ActivityCard({
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+function MonitorControlsCard({
+  monitorStatus,
+  isLoading,
+  isError,
+  filesystemPath,
+  startClipboardIsPending,
+  stopClipboardIsPending,
+  startFilesystemIsPending,
+  stopFilesystemIsPending,
+  startClipboardIsError,
+  stopClipboardIsError,
+  startFilesystemIsError,
+  stopFilesystemIsError,
+  onStartClipboard,
+  onStopClipboard,
+  onStartFilesystem,
+  onStopFilesystem,
+  onSetFilesystemPath,
+}: {
+  monitorStatus: MonitorStatus | undefined
+  isLoading: boolean
+  isError: boolean
+  filesystemPath: string
+  startClipboardIsPending: boolean
+  stopClipboardIsPending: boolean
+  startFilesystemIsPending: boolean
+  stopFilesystemIsPending: boolean
+  startClipboardIsError: boolean
+  stopClipboardIsError: boolean
+  startFilesystemIsError: boolean
+  stopFilesystemIsError: boolean
+  onStartClipboard: () => void
+  onStopClipboard: () => void
+  onStartFilesystem: () => void
+  onStopFilesystem: () => void
+  onSetFilesystemPath: (path: string) => void
+}) {
+  const clipboard = monitorStatus?.clipboard
+  const filesystem = monitorStatus?.filesystem
+  const clipboardBusy = startClipboardIsPending || stopClipboardIsPending
+  const filesystemBusy = startFilesystemIsPending || stopFilesystemIsPending
+  const filesystemCanStart = filesystemPath.trim().length > 0 && !filesystemBusy
+  const hasMutationError = startClipboardIsError || stopClipboardIsError || startFilesystemIsError || stopFilesystemIsError
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#111620] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={18} className="text-cyan-200" aria-hidden="true" />
+          <h2 className="text-base font-semibold text-white">Capture controls</h2>
+        </div>
+        {isLoading ? <Loader2 size={16} className="animate-spin text-cyan-200" aria-hidden="true" /> : null}
+      </div>
+
+      {isError ? (
+        <p className="mt-4 rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-sm leading-6 text-red-100">
+          Monitor API unavailable.
+        </p>
+      ) : null}
+
+      {hasMutationError ? (
+        <p className="mt-4 rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-sm leading-6 text-red-100">
+          Could not update monitor state.
+        </p>
+      ) : null}
+
+      <div className="mt-5 divide-y divide-white/10">
+        <MonitorWorkerPanel
+          icon={Clipboard}
+          title="Clipboard"
+          worker={clipboard}
+          isBusy={clipboardBusy}
+          onStart={onStartClipboard}
+          onStop={onStopClipboard}
+          startLabel="Start clipboard monitor"
+          stopLabel="Stop clipboard monitor"
+        />
+
+        <div className="py-4 last:pb-0">
+          <MonitorWorkerHeader icon={FolderOpen} title="Filesystem" worker={filesystem} />
+
+          <label className="mt-4 grid gap-2 text-sm text-slate-300">
+            Filesystem path
+            <input
+              className="h-10 rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/50 disabled:cursor-not-allowed disabled:opacity-60"
+              value={filesystem?.running ? filesystem.watch_path ?? filesystemPath : filesystemPath}
+              onChange={(event) => onSetFilesystemPath(event.target.value)}
+              placeholder="/Users/you/project"
+              disabled={filesystem?.running || filesystemBusy}
+            />
+          </label>
+
+          <MonitorWorkerMeta worker={filesystem} />
+
+          <button
+            className={`mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              filesystem?.running
+                ? 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10'
+                : 'bg-cyan-300 text-slate-950 hover:bg-cyan-200'
+            }`}
+            type="button"
+            aria-label={filesystem?.running ? 'Stop filesystem monitor' : 'Start filesystem monitor'}
+            onClick={filesystem?.running ? onStopFilesystem : onStartFilesystem}
+            disabled={filesystem?.running ? filesystemBusy : !filesystemCanStart}
+          >
+            {filesystemBusy ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+            ) : filesystem?.running ? (
+              <Square size={15} aria-hidden="true" />
+            ) : (
+              <Play size={16} aria-hidden="true" />
+            )}
+            {filesystem?.running ? 'Stop' : 'Start'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MonitorWorkerPanel({
+  icon: Icon,
+  title,
+  worker,
+  isBusy,
+  startLabel,
+  stopLabel,
+  onStart,
+  onStop,
+}: {
+  icon: typeof Clipboard
+  title: string
+  worker: MonitorWorkerStatus | undefined
+  isBusy: boolean
+  startLabel: string
+  stopLabel: string
+  onStart: () => void
+  onStop: () => void
+}) {
+  return (
+    <div className="pb-4">
+      <MonitorWorkerHeader icon={Icon} title={title} worker={worker} />
+      <MonitorWorkerMeta worker={worker} />
+      <button
+        className={`mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+          worker?.running
+            ? 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10'
+            : 'bg-cyan-300 text-slate-950 hover:bg-cyan-200'
+        }`}
+        type="button"
+        aria-label={worker?.running ? stopLabel : startLabel}
+        onClick={worker?.running ? onStop : onStart}
+        disabled={isBusy}
+      >
+        {isBusy ? (
+          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+        ) : worker?.running ? (
+          <Square size={15} aria-hidden="true" />
+        ) : (
+          <Play size={16} aria-hidden="true" />
+        )}
+        {worker?.running ? 'Stop' : 'Start'}
+      </button>
+    </div>
+  )
+}
+
+function MonitorWorkerHeader({
+  icon: Icon,
+  title,
+  worker,
+}: {
+  icon: typeof Clipboard
+  title: string
+  worker: MonitorWorkerStatus | undefined
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <Icon size={17} className="text-cyan-200" aria-hidden="true" />
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+      </div>
+      <span
+        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+          worker?.running
+            ? 'bg-emerald-300/10 text-emerald-300'
+            : 'bg-white/[0.04] text-slate-400'
+        }`}
+      >
+        {worker?.running ? 'Running' : 'Stopped'}
+      </span>
+    </div>
+  )
+}
+
+function MonitorWorkerMeta({ worker }: { worker: MonitorWorkerStatus | undefined }) {
+  return (
+    <dl className="mt-4 grid gap-2 text-xs">
+      <MonitorMetaRow label="Session events" value={String(worker?.events_created ?? 0)} />
+      <MonitorMetaRow label="Last checked" value={worker?.last_checked_at ? formatDate(worker.last_checked_at) : 'Never'} />
+      {worker?.last_error ? <MonitorMetaRow label="Last error" value={worker.last_error} /> : null}
+    </dl>
+  )
+}
+
+function MonitorMetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="truncate text-right text-slate-300">{value}</dd>
     </div>
   )
 }

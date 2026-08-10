@@ -12,12 +12,17 @@ import {
   exportEvents,
   getEventActivity,
   getEventSummary,
+  getMonitorStatus,
   importEvents,
   listEventSources,
   listEvents,
+  startClipboardMonitor,
+  startFilesystemMonitor,
+  stopClipboardMonitor,
+  stopFilesystemMonitor,
   updateEvent,
 } from './lib/api'
-import type { EventActivity, EventRecord, EventSourceStats, EventSummary } from './lib/types'
+import type { EventActivity, EventRecord, EventSourceStats, EventSummary, MonitorStatus } from './lib/types'
 
 vi.mock('./lib/api', () => ({
   createEvent: vi.fn(),
@@ -25,9 +30,14 @@ vi.mock('./lib/api', () => ({
   exportEvents: vi.fn(),
   getEventActivity: vi.fn(),
   getEventSummary: vi.fn(),
+  getMonitorStatus: vi.fn(),
   importEvents: vi.fn(),
   listEventSources: vi.fn(),
   listEvents: vi.fn(),
+  startClipboardMonitor: vi.fn(),
+  startFilesystemMonitor: vi.fn(),
+  stopClipboardMonitor: vi.fn(),
+  stopFilesystemMonitor: vi.fn(),
   updateEvent: vi.fn(),
 }))
 
@@ -95,6 +105,35 @@ const sources: EventSourceStats[] = [
   },
 ]
 
+const monitorStatus: MonitorStatus = {
+  clipboard: {
+    name: 'clipboard',
+    running: false,
+    interval_seconds: null,
+    watch_path: null,
+    include_hidden: false,
+    events_created: 0,
+    last_event_id: null,
+    last_checked_at: null,
+    last_error: null,
+    started_at: null,
+    stopped_at: null,
+  },
+  filesystem: {
+    name: 'filesystem',
+    running: false,
+    interval_seconds: null,
+    watch_path: null,
+    include_hidden: false,
+    events_created: 0,
+    last_event_id: null,
+    last_checked_at: null,
+    last_error: null,
+    started_at: null,
+    stopped_at: null,
+  },
+}
+
 function renderDashboard() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -117,12 +156,18 @@ describe('dashboard', () => {
     vi.mocked(exportEvents).mockReset()
     vi.mocked(getEventActivity).mockReset()
     vi.mocked(getEventSummary).mockReset()
+    vi.mocked(getMonitorStatus).mockReset()
     vi.mocked(importEvents).mockReset()
     vi.mocked(listEventSources).mockReset()
     vi.mocked(listEvents).mockReset()
+    vi.mocked(startClipboardMonitor).mockReset()
+    vi.mocked(startFilesystemMonitor).mockReset()
+    vi.mocked(stopClipboardMonitor).mockReset()
+    vi.mocked(stopFilesystemMonitor).mockReset()
     vi.mocked(updateEvent).mockReset()
     vi.mocked(getEventActivity).mockResolvedValue(activity)
     vi.mocked(getEventSummary).mockResolvedValue(summary)
+    vi.mocked(getMonitorStatus).mockResolvedValue(monitorStatus)
     vi.mocked(listEventSources).mockResolvedValue(sources)
   })
 
@@ -150,6 +195,7 @@ describe('dashboard', () => {
     expect(screen.getByText('Local activity, organized by source.')).toBeInTheDocument()
     expect(screen.getByText('Total events')).toBeInTheDocument()
     expect(screen.getByText('Sources tracked')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Capture controls' })).toBeInTheDocument()
     expect(screen.getByText('7-day activity')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Event detail' })).not.toBeInTheDocument()
 
@@ -160,6 +206,52 @@ describe('dashboard', () => {
     expect(screen.getAllByText('backend/app/main.py')).toHaveLength(1)
     expect(screen.getAllByText('select * from events;')).toHaveLength(2)
     expect(screen.getAllByText('language: sql')).toHaveLength(2)
+  })
+
+  it('starts clipboard and filesystem monitors from the dashboard', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+    vi.mocked(startClipboardMonitor).mockResolvedValue({
+      ...monitorStatus,
+      clipboard: {
+        ...monitorStatus.clipboard,
+        running: true,
+        interval_seconds: 1,
+      },
+    })
+    vi.mocked(startFilesystemMonitor).mockResolvedValue({
+      ...monitorStatus,
+      filesystem: {
+        ...monitorStatus.filesystem,
+        running: true,
+        interval_seconds: 5,
+        watch_path: '/Users/amirjonabdunayimov/Documents/GhostMirror',
+      },
+    })
+
+    renderDashboard()
+
+    await screen.findByRole('heading', { name: 'Capture controls' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start clipboard monitor' }))
+    await waitFor(() => {
+      expect(startClipboardMonitor).toHaveBeenCalledWith({ interval_seconds: 1 })
+    })
+
+    fireEvent.change(screen.getByLabelText('Filesystem path'), {
+      target: { value: '/Users/amirjonabdunayimov/Documents/GhostMirror' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start filesystem monitor' }))
+
+    await waitFor(() => {
+      expect(startFilesystemMonitor).toHaveBeenCalledWith(
+        {
+          path: '/Users/amirjonabdunayimov/Documents/GhostMirror',
+          interval_seconds: 5,
+          include_hidden: false,
+        },
+        expect.any(Object),
+      )
+    })
   })
 
   it('passes search and filters to the event API', async () => {

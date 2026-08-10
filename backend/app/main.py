@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.events import router as events_router
 from app.api.health import router as health_router
+from app.api.monitor import monitor_manager, router as monitor_router
 from app.core.config import settings
 from app.db.session import init_db
 
@@ -13,7 +14,10 @@ from app.db.session import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
-    yield
+    try:
+        yield
+    finally:
+        monitor_manager.stop_all()
 
 
 def create_app() -> FastAPI:
@@ -32,6 +36,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(events_router)
+    app.include_router(monitor_router)
     return app
 
 

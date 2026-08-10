@@ -64,6 +64,35 @@ const sources = [
   },
 ]
 
+const monitorStatus = {
+  clipboard: {
+    name: 'clipboard',
+    running: false,
+    interval_seconds: null,
+    watch_path: null,
+    include_hidden: false,
+    events_created: 0,
+    last_event_id: null,
+    last_checked_at: null,
+    last_error: null,
+    started_at: null,
+    stopped_at: null,
+  },
+  filesystem: {
+    name: 'filesystem',
+    running: false,
+    interval_seconds: null,
+    watch_path: null,
+    include_hidden: false,
+    events_created: 0,
+    last_event_id: null,
+    last_checked_at: null,
+    last_error: null,
+    started_at: null,
+    stopped_at: null,
+  },
+}
+
 test('renders dashboard events and sends search filters', async ({ page }) => {
   const eventRequests: string[] = []
 
@@ -114,9 +143,14 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
     await route.continue()
   })
 
+  await page.route('http://127.0.0.1:8000/monitors**', async (route) => {
+    await route.fulfill({ json: monitorStatus })
+  })
+
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Capture controls' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Event detail' })).not.toBeVisible()
   await expect(page.getByText('Copied SQL query').first()).toBeVisible()
 

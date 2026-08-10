@@ -9,6 +9,11 @@ import {
   importEvents,
   listEventSources,
   listEvents,
+  getMonitorStatus,
+  startClipboardMonitor,
+  startFilesystemMonitor,
+  stopClipboardMonitor,
+  stopFilesystemMonitor,
   updateEvent,
 } from './api'
 
@@ -263,6 +268,105 @@ describe('event API client', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/events/42',
       expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('gets monitor status', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        clipboard: {
+          name: 'clipboard',
+          running: false,
+          interval_seconds: null,
+          watch_path: null,
+          include_hidden: false,
+          events_created: 0,
+          last_event_id: null,
+          last_checked_at: null,
+          last_error: null,
+          started_at: null,
+          stopped_at: null,
+        },
+        filesystem: {
+          name: 'filesystem',
+          running: false,
+          interval_seconds: null,
+          watch_path: null,
+          include_hidden: false,
+          events_created: 0,
+          last_event_id: null,
+          last_checked_at: null,
+          last_error: null,
+          started_at: null,
+          stopped_at: null,
+        },
+      }),
+    )
+
+    const status = await getMonitorStatus()
+
+    expect(status.clipboard.running).toBe(false)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/monitors/status',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    )
+  })
+
+  it('starts and stops clipboard monitoring', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({}))
+
+    await startClipboardMonitor({ interval_seconds: 1 })
+    await stopClipboardMonitor()
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:8000/monitors/clipboard/start',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ interval_seconds: 1 }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/monitors/clipboard/stop',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('starts and stops filesystem monitoring', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({}))
+
+    await startFilesystemMonitor({
+      path: '/workspace/project',
+      interval_seconds: 5,
+      include_hidden: false,
+    })
+    await stopFilesystemMonitor()
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:8000/monitors/filesystem/start',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          path: '/workspace/project',
+          interval_seconds: 5,
+          include_hidden: false,
+        }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:8000/monitors/filesystem/stop',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 
