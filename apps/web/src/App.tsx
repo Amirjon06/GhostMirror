@@ -462,7 +462,7 @@ function App() {
 
         <section className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
           <header className="relative z-10 shrink-0 border-b border-white/10 bg-[#090b10]/90 px-4 py-4 backdrop-blur md:px-8">
-            <div className="mx-auto flex w-full max-w-7xl items-center gap-4">
+            <div className="mx-auto flex w-full max-w-6xl items-center gap-4">
               <div className="flex items-center gap-3 lg:hidden">
                 <LogoMark compact />
                 <span className="text-sm font-semibold text-white">GhostMirror</span>
@@ -549,7 +549,7 @@ function App() {
           </header>
 
           <div ref={contentScrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-            <div className="mx-auto w-full max-w-7xl">
+            <div className="mx-auto w-full max-w-6xl">
               {activeView === 'dashboard' ? (
                 <DashboardView
                   stats={stats}
@@ -785,7 +785,7 @@ function DashboardView({
         description="A compact overview of local event capture, API availability, and recent activity."
       />
 
-      <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+      <section className="grid gap-6">
         <div className="overflow-hidden rounded-lg border border-white/10 bg-[#111620]">
           <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-6 md:p-8">
             <div className="flex flex-wrap items-center gap-3">
@@ -807,7 +807,7 @@ function DashboardView({
             </div>
           </div>
 
-          <div className="grid gap-px bg-white/10 md:grid-cols-3">
+          <div className="grid gap-px bg-white/10">
             {stats.map((stat) => (
               <div key={stat.label} className="bg-[#111620] p-5">
                 <p className="text-sm text-slate-400">{stat.label}</p>
@@ -841,9 +841,6 @@ function DashboardView({
           />
           <RecentPreviewCard events={events} onOpenEvents={onOpenEvents} />
         </div>
-      </section>
-
-      <section className="mt-6">
         <ActivityCard
           activityBuckets={activityBuckets}
           isError={activityQueryIsError}
@@ -909,7 +906,7 @@ function EventsView(props: {
         description="Create, inspect, update, import, export, and delete stored events."
       />
 
-      <div className="grid max-w-5xl gap-6">
+      <div className="grid gap-6">
         <section className="min-w-0 rounded-lg border border-white/10 bg-[#111620]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
             <div>
@@ -1026,8 +1023,8 @@ function SearchView({
         description="Search event titles and content, then narrow results by source or event type."
       />
 
-      <section className="max-w-5xl rounded-lg border border-white/10 bg-[#111620]">
-        <div className="grid gap-4 border-b border-white/10 p-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px]">
+      <section className="rounded-lg border border-white/10 bg-[#111620]">
+        <div className="grid gap-4 border-b border-white/10 p-5">
           <label className="grid gap-2 text-sm text-slate-300">
             Query
             <input
@@ -1042,7 +1039,7 @@ function SearchView({
           <FilterSelect label="Type" value={eventTypeFilter} options={eventTypeOptions} emptyLabel="All types" onChange={onEventTypeFilterChange} />
 
           <button
-            className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2 xl:col-span-1"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={onClearSearchFilters}
             disabled={!hasActiveSearch}
@@ -1103,7 +1100,7 @@ function SourcesView({
         description="Review where stored events are coming from and jump into filtered search results."
       />
 
-      <div className="grid max-w-5xl items-start gap-6">
+      <div className="grid items-start gap-6">
         <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
           <div className="flex items-center gap-2">
             <FolderGit2 size={18} className="text-cyan-200" aria-hidden="true" />
@@ -1183,7 +1180,7 @@ function StorageView({
         description="Manage local event data and move event history in or out of GhostMirror as JSON."
       />
 
-      <div className="grid max-w-5xl gap-6">
+      <div className="grid gap-6">
         <section className="rounded-lg border border-white/10 bg-[#111620] p-5">
           <div className="flex items-center gap-2">
             <HardDrive size={18} className="text-cyan-200" aria-hidden="true" />
@@ -1215,7 +1212,7 @@ function StorageView({
             onChange={(event) => void onImportFile(event)}
           />
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3">
             <button
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
