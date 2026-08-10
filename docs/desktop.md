@@ -1,34 +1,50 @@
 # Desktop Packaging
 
-GhostMirror currently runs as a local web dashboard backed by a local API. Desktop packaging is planned so the application can be launched as a normal desktop app.
+GhostMirror includes a Tauri desktop shell around the React dashboard. The current desktop app opens the dashboard in a native window and connects to the local FastAPI service.
 
 ## Current Status
 
-Desktop packaging is not implemented yet.
+The desktop app scaffold is implemented in `apps/web/src-tauri`.
 
-The current local workflow is:
-
-```bash
-./scripts/monitor.sh
-```
-
-This starts the API, dashboard, and clipboard monitor. It can also start filesystem monitoring when a directory is provided:
+The development command starts the FastAPI API and Vite dashboard for the Tauri window:
 
 ```bash
-./scripts/monitor.sh /path/to/workspace
+cd apps/web
+npm run desktop:dev
 ```
 
-## Planned Runtime
+The package command builds a macOS app bundle:
 
-The planned desktop runtime is Tauri.
+```bash
+cd apps/web
+npm run desktop:build
+```
 
-Expected responsibilities:
+The app bundle is written to:
+
+```text
+apps/web/src-tauri/target/release/bundle/macos/GhostMirror.app
+```
+
+For local use, start the API before opening the packaged app:
+
+```bash
+./scripts/api.sh
+open apps/web/src-tauri/target/release/bundle/macos/GhostMirror.app
+```
+
+## Runtime
+
+The desktop runtime uses Tauri.
+
+Current responsibilities:
 
 - Launch the React dashboard in a native window.
-- Start or connect to the local FastAPI service.
+- Start the FastAPI service during desktop development.
 - Keep SQLite data on the local machine.
-- Provide local controls for clipboard and filesystem monitoring.
-- Package the app for local installation.
+- Build a macOS `.app` bundle.
+
+The packaged desktop app still expects the FastAPI service to be available locally. Building a DMG installer and supervising the Python API as a desktop sidecar are future work.
 
 ## Local Requirements
 
@@ -53,10 +69,9 @@ rustc --version
 cargo --version
 ```
 
-## Packaging Plan
+## Files
 
-- Add a Tauri shell around the existing React app.
-- Keep the existing FastAPI API as the backend service.
-- Decide how the desktop app starts and stops the API process.
-- Store application data in a stable local app data directory.
-- Add a packaging check to CI after the desktop project exists.
+- `apps/web/src-tauri/tauri.conf.json` defines the desktop window, dev server, and bundle settings.
+- `apps/web/src-tauri/src` contains the Rust entry point for the Tauri shell.
+- `scripts/desktop-dev.sh` starts the local API and dashboard for desktop development.
+- `scripts/api.sh` starts the local API for use with the packaged app.

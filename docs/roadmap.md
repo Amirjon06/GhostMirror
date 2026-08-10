@@ -32,7 +32,10 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Backend tests for health, events, validation, search, and filters.
 - GitHub Actions workflows for backend tests and frontend validation.
 - Local environment, setup, development, and check scripts.
+- Tauri desktop shell scaffold.
+- macOS app bundle build.
 
 ## Later
 
-- Add desktop packaging with Tauri.
+- Build a DMG installer.
+- Bundle the local API as a desktop sidecar.

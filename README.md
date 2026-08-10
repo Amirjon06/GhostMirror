@@ -15,6 +15,7 @@ The project focuses on a practical event pipeline: local ingestion, structured p
 - Captures filesystem text snapshots as `filesystem` events.
 - Provides dashboard controls for starting and stopping local capture monitors.
 - Shows event summaries, source counts, recent activity, and event detail views.
+- Includes a Tauri desktop app bundle for running the dashboard in a native window.
 
 ## How It Works
 
@@ -54,6 +55,7 @@ The event API supports CRUD operations, stats endpoints, import/export, keyword 
 | Backend | Python, FastAPI, Pydantic |
 | Database | SQLite, SQLAlchemy, Alembic, FTS5 |
 | Testing | pytest, Vitest, Playwright |
+| Desktop | Tauri |
 | Tooling | Docker Compose, GitHub Actions |
 
 ## Local Development
@@ -99,6 +101,27 @@ Run the semantic search benchmark with a 500-event sample dataset:
 
 ```bash
 ./scripts/benchmark_semantic_search.py
+```
+
+Run the desktop shell in development:
+
+```bash
+cd apps/web
+npm run desktop:dev
+```
+
+Run the packaged desktop app with the local API:
+
+```bash
+./scripts/api.sh
+open apps/web/src-tauri/target/release/bundle/macos/GhostMirror.app
+```
+
+Build the desktop app bundle:
+
+```bash
+cd apps/web
+npm run desktop:build
 ```
 
 Run with Docker Compose:
@@ -186,4 +209,6 @@ The project includes:
 - [x] Dashboard capture controls
 - [x] Tests and CI
 - [x] Semantic retrieval
-- [ ] Desktop packaging
+- [x] Desktop shell scaffold
+- [x] Desktop app bundle
+- [ ] Desktop installer and API sidecar
