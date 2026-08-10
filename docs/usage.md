@@ -84,9 +84,15 @@ Hidden files and directories are skipped unless `--include-hidden` is provided.
 
 ## Search And Filter
 
-The dashboard search bar searches event titles and content. Source and type filters narrow the visible event list.
+The dashboard search bar searches stored events. Use Keyword mode for SQLite FTS5 search, or Semantic mode for local embedding search. Source and type filters narrow the visible event list.
 
 The backend uses SQLite FTS5 when available and falls back to case-insensitive SQL matching when the search index is unavailable.
+
+Run the semantic search benchmark with a 500-event sample dataset:
+
+```bash
+./scripts/benchmark_semantic_search.py
+```
 
 ## Edit And Delete Events
 

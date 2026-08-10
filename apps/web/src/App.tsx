@@ -46,6 +46,7 @@ import {
   importEvents,
   listEventSources,
   listEvents,
+  semanticSearchEvents,
   startClipboardMonitor,
   startFilesystemMonitor,
   stopClipboardMonitor,
@@ -56,6 +57,7 @@ import type { EventExport, EventImportPayload, EventRecord, EventUpdatePayload, 
 
 type ActiveView = 'dashboard' | 'events' | 'search' | 'sources' | 'storage'
 type ThemeMode = 'dark' | 'light'
+type SearchMode = 'keyword' | 'semantic'
 
 const navItems: Array<{ id: ActiveView; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -121,6 +123,7 @@ function App() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchMode, setSearchMode] = useState<SearchMode>('keyword')
   const [sourceFilter, setSourceFilter] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('')
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
@@ -142,8 +145,15 @@ function App() {
   )
 
   const eventsQuery = useQuery({
-    queryKey: ['events', eventListParams],
-    queryFn: () => listEvents(eventListParams),
+    queryKey: ['events', eventListParams, searchMode],
+    queryFn: async () => {
+      if (searchMode === 'semantic' && eventListParams.q) {
+        const results = await semanticSearchEvents(eventListParams)
+        return results.map((result) => result.event)
+      }
+
+      return listEvents(eventListParams)
+    },
   })
 
   const summaryQuery = useQuery({
@@ -640,12 +650,14 @@ function App() {
                 <SearchView
                   events={events}
                   searchTerm={searchTerm}
+                  searchMode={searchMode}
                   sourceFilter={sourceFilter}
                   eventTypeFilter={eventTypeFilter}
                   hasActiveSearch={hasActiveSearch}
                   eventsQueryIsLoading={eventsQuery.isLoading}
                   eventsQueryIsError={eventsQuery.isError}
                   onSearchTermChange={setSearchTerm}
+                  onSearchModeChange={setSearchMode}
                   onSourceFilterChange={setSourceFilter}
                   onEventTypeFilterChange={setEventTypeFilter}
                   onClearSearchFilters={clearSearchFilters}
@@ -992,12 +1004,14 @@ function EventsView(props: {
 function SearchView({
   events,
   searchTerm,
+  searchMode,
   sourceFilter,
   eventTypeFilter,
   hasActiveSearch,
   eventsQueryIsLoading,
   eventsQueryIsError,
   onSearchTermChange,
+  onSearchModeChange,
   onSourceFilterChange,
   onEventTypeFilterChange,
   onClearSearchFilters,
@@ -1005,12 +1019,14 @@ function SearchView({
 }: {
   events: EventRecord[]
   searchTerm: string
+  searchMode: SearchMode
   sourceFilter: string
   eventTypeFilter: string
   hasActiveSearch: boolean
   eventsQueryIsLoading: boolean
   eventsQueryIsError: boolean
   onSearchTermChange: (value: string) => void
+  onSearchModeChange: (value: SearchMode) => void
   onSourceFilterChange: (value: string) => void
   onEventTypeFilterChange: (value: string) => void
   onClearSearchFilters: () => void
@@ -1020,11 +1036,31 @@ function SearchView({
     <>
       <ViewHeading
         title="Search"
-        description="Search event titles and content, then narrow results by source or event type."
+        description="Search local events, then narrow results by source or event type."
       />
 
       <section className="rounded-lg border border-white/10 bg-[#111620]">
         <div className="grid gap-4 border-b border-white/10 p-5">
+          <div className="grid gap-2 text-sm text-slate-300">
+            Mode
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-[#0d1017] p-1">
+              {(['keyword', 'semantic'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={`h-9 rounded-md px-3 text-sm font-medium transition ${
+                    searchMode === mode
+                      ? 'bg-cyan-300 text-slate-950'
+                      : 'text-slate-400 hover:bg-white/10 hover:text-slate-100'
+                  }`}
+                  type="button"
+                  onClick={() => onSearchModeChange(mode)}
+                >
+                  {mode === 'keyword' ? 'Keyword' : 'Semantic'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <label className="grid gap-2 text-sm text-slate-300">
             Query
             <input

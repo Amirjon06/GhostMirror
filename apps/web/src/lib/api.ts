@@ -6,6 +6,7 @@ import type {
   EventImportResult,
   EventListParams,
   EventRecord,
+  SemanticSearchResult,
   EventSourceStats,
   EventSummary,
   EventUpdatePayload,
@@ -56,8 +57,31 @@ function buildEventQuery(params: EventListParams = {}) {
   return query ? `/events?${query}` : '/events'
 }
 
+function buildSemanticSearchQuery(params: EventListParams = {}) {
+  const searchParams = new URLSearchParams()
+
+  if (params.q) {
+    searchParams.set('q', params.q)
+  }
+
+  if (params.source) {
+    searchParams.set('source', params.source)
+  }
+
+  if (params.eventType) {
+    searchParams.set('event_type', params.eventType)
+  }
+
+  const query = searchParams.toString()
+  return query ? `/events/search/semantic?${query}` : '/events/search/semantic'
+}
+
 export function listEvents(params?: EventListParams): Promise<EventRecord[]> {
   return request<EventRecord[]>(buildEventQuery(params))
+}
+
+export function semanticSearchEvents(params: EventListParams): Promise<SemanticSearchResult[]> {
+  return request<SemanticSearchResult[]>(buildSemanticSearchQuery(params))
 }
 
 export function getEventSummary(): Promise<EventSummary> {

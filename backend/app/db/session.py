@@ -21,7 +21,7 @@ def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     # Import models before create_all so SQLAlchemy registers table metadata.
-    from app.models import event  # noqa: F401
+    from app.models import Event, EventEmbedding  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     create_event_search_index(engine)

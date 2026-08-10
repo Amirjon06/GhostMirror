@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.event import Event, utc_now
+from app.models.event_embedding import EventEmbedding
 from app.schemas.event import (
     EventCreate,
     EventActivity,
@@ -17,6 +18,12 @@ from app.schemas.event import (
     EventSourceStats,
     EventSummary,
     EventUpdate,
+)
+from app.services.embeddings import (
+    content_hash,
+    cosine_similarity,
+    event_embedding_text,
+    get_embedding_provider,
 )
 
 
@@ -57,6 +64,8 @@ def create_event(db: Session, event_in: EventCreate) -> Event:
         metadata_=event_in.metadata,
     )
     db.add(event)
+    db.flush()
+    upsert_event_embedding(db, event)
     db.commit()
     db.refresh(event)
     return event
@@ -73,6 +82,7 @@ def update_event(db: Session, event: Event, event_in: EventUpdate) -> Event:
     if "metadata" in values and values["metadata"] is not None:
         event.metadata_ = values["metadata"]
 
+    upsert_event_embedding(db, event)
     db.commit()
     db.refresh(event)
     return event
@@ -224,8 +234,46 @@ def import_events(db: Session, event_import: EventImport) -> EventImportResult:
     ]
 
     db.add_all(events)
+    db.flush()
+    for event in events:
+        upsert_event_embedding(db, event)
+
     db.commit()
     return EventImportResult(imported_events=len(events))
+
+
+def semantic_search_events(
+    db: Session,
+    q: str,
+    source: str | None = None,
+    event_type: str | None = None,
+    limit: int = 10,
+    min_score: float = 0.05,
+) -> list[tuple[Event, float]]:
+    ensure_event_embeddings(db)
+    provider = get_embedding_provider()
+    query_vector = provider.embed(q)
+    statement = select(Event, EventEmbedding).join(EventEmbedding, EventEmbedding.event_id == Event.id)
+
+    if source:
+        statement = statement.where(Event.source == source.strip())
+
+    if event_type:
+        statement = statement.where(Event.event_type == event_type.strip())
+
+    rows = db.execute(statement).all()
+    ranked_events: list[tuple[Event, float]] = []
+
+    for event, embedding in rows:
+        if embedding.dimensions != provider.dimensions:
+            continue
+
+        score = max(0.0, min(1.0, cosine_similarity(query_vector, embedding.vector)))
+        if score >= min_score:
+            ranked_events.append((event, score))
+
+    ranked_events.sort(key=lambda item: (item[1], item[0].created_at, item[0].id), reverse=True)
+    return ranked_events[:limit]
 
 
 def _list_events_with_fts(
@@ -285,5 +333,63 @@ def get_event(db: Session, event_id: int) -> Event | None:
 
 
 def delete_event(db: Session, event: Event) -> None:
+    embedding = db.scalar(select(EventEmbedding).where(EventEmbedding.event_id == event.id))
+    if embedding is not None:
+        db.delete(embedding)
+
     db.delete(event)
     db.commit()
+
+
+def ensure_event_embeddings(db: Session) -> None:
+    provider = get_embedding_provider()
+    rows = db.execute(select(Event, EventEmbedding).outerjoin(EventEmbedding, EventEmbedding.event_id == Event.id)).all()
+    changed = False
+
+    for event, embedding in rows:
+        text_value = event_embedding_text(event)
+        if (
+            embedding is None
+            or embedding.content_hash != content_hash(text_value)
+            or embedding.provider != provider.provider
+            or embedding.model != provider.model
+            or embedding.dimensions != provider.dimensions
+        ):
+            upsert_event_embedding(db, event)
+            changed = True
+
+    if changed:
+        db.commit()
+
+
+def upsert_event_embedding(db: Session, event: Event) -> EventEmbedding:
+    provider = get_embedding_provider()
+    text_value = event_embedding_text(event)
+    hash_value = content_hash(text_value)
+    embedding = db.scalar(select(EventEmbedding).where(EventEmbedding.event_id == event.id))
+
+    if embedding is None:
+        embedding = EventEmbedding(
+            event_id=event.id,
+            provider=provider.provider,
+            model=provider.model,
+            dimensions=provider.dimensions,
+            content_hash=hash_value,
+            vector=provider.embed(text_value),
+        )
+        db.add(embedding)
+        return embedding
+
+    if (
+        embedding.content_hash != hash_value
+        or embedding.provider != provider.provider
+        or embedding.model != provider.model
+        or embedding.dimensions != provider.dimensions
+    ):
+        embedding.provider = provider.provider
+        embedding.model = provider.model
+        embedding.dimensions = provider.dimensions
+        embedding.content_hash = hash_value
+        embedding.vector = provider.embed(text_value)
+
+    return embedding

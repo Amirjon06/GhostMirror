@@ -95,3 +95,8 @@ class EventImport(BaseModel):
 
 class EventImportResult(BaseModel):
     imported_events: int
+
+
+class EventSemanticSearchResult(BaseModel):
+    event: EventRead
+    score: float = Field(ge=0, le=1)

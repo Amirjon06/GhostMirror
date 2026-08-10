@@ -10,6 +10,7 @@ import {
   listEventSources,
   listEvents,
   getMonitorStatus,
+  semanticSearchEvents,
   startClipboardMonitor,
   startFilesystemMonitor,
   stopClipboardMonitor,
@@ -55,6 +56,38 @@ describe('event API client', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/events?q=sql+query&source=clipboard&event_type=snippet',
+      expect.any(Object),
+    )
+  })
+
+  it('runs semantic search with filters', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          event: {
+            id: 1,
+            source: 'filesystem',
+            event_type: 'file_snapshot',
+            title: 'backend/app/api/events.py',
+            content: 'FastAPI route handler for event search',
+            metadata: {},
+            created_at: '2026-08-06T00:00:00Z',
+            updated_at: '2026-08-06T00:00:00Z',
+          },
+          score: 0.72,
+        },
+      ]),
+    )
+
+    const results = await semanticSearchEvents({
+      q: 'backend endpoint',
+      source: 'filesystem',
+      eventType: 'file_snapshot',
+    })
+
+    expect(results[0].score).toBe(0.72)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/events/search/semantic?q=backend+endpoint&source=filesystem&event_type=file_snapshot',
       expect.any(Object),
     )
   })

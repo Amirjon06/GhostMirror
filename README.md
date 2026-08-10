@@ -2,13 +2,14 @@
 
 GhostMirror is a local development activity dashboard for capturing, storing, searching, and reviewing workflow events. It runs locally, stores data in SQLite, and exposes a FastAPI service used by a React dashboard.
 
-The project focuses on a practical event pipeline: local ingestion, structured persistence, keyword search, API access, dashboard views, tests, and CI.
+The project focuses on a practical event pipeline: local ingestion, structured persistence, keyword and semantic search, API access, dashboard views, tests, and CI.
 
 ## What It Does
 
 - Stores structured events with source, type, title, content, metadata, and timestamps.
 - Supports event create, list, detail, update, delete, import, and export.
 - Provides keyword search over event title and content with SQLite FTS5.
+- Provides local semantic search over stored event embeddings.
 - Filters events by source and event type.
 - Captures clipboard text as `clipboard` events.
 - Captures filesystem text snapshots as `filesystem` events.
@@ -29,7 +30,8 @@ Runtime flow:
 3. Route handlers delegate database work to service modules.
 4. SQLAlchemy persists events in SQLite.
 5. SQLite FTS5 keeps title and content searchable.
-6. The React dashboard reads API data with TanStack Query and renders the local activity views.
+6. Local event embeddings support semantic search by cosine similarity.
+7. The React dashboard reads API data with TanStack Query and renders the local activity views.
 
 ## Backend Design
 
@@ -42,7 +44,7 @@ The backend separates HTTP routing, validation, persistence, and business logic:
 - `backend/app/db` contains the engine, session factory, and database setup.
 - `backend/alembic` contains schema migrations.
 
-The event API supports CRUD operations, stats endpoints, import/export, search, filters, and monitor control. The application initializes the local database on startup for development use, while migrations define the durable schema.
+The event API supports CRUD operations, stats endpoints, import/export, keyword search, semantic search, filters, and monitor control. The application initializes the local database on startup for development use, while migrations define the durable schema.
 
 ## Tech Stack
 
@@ -93,6 +95,12 @@ Run checks:
 RUN_E2E=1 ./scripts/check.sh
 ```
 
+Run the semantic search benchmark with a 500-event sample dataset:
+
+```bash
+./scripts/benchmark_semantic_search.py
+```
+
 Run with Docker Compose:
 
 ```bash
@@ -110,6 +118,7 @@ GET    /events/stats/activity
 GET    /events/stats/sources
 GET    /events/export
 POST   /events/import
+GET    /events/search/semantic
 GET    /events/{id}
 PATCH  /events/{id}
 DELETE /events/{id}
@@ -176,5 +185,5 @@ The project includes:
 - [x] Import and export
 - [x] Dashboard capture controls
 - [x] Tests and CI
-- [ ] Semantic retrieval
+- [x] Semantic retrieval
 - [ ] Desktop packaging

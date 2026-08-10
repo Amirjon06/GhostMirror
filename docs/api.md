@@ -86,6 +86,46 @@ Example:
 curl "http://127.0.0.1:8000/events?q=sql&source=clipboard&event_type=snippet"
 ```
 
+### Semantic Search
+
+```text
+GET /events/search/semantic
+```
+
+Query parameters:
+
+| Parameter | Type | Default | Notes |
+| --------- | ---- | ------- | ----- |
+| `q` | string | required | Search query embedded and compared to stored event embeddings. |
+| `source` | string | none | Exact source filter. |
+| `event_type` | string | none | Exact event type filter. |
+| `limit` | integer | 10 | Minimum 1, maximum 50. |
+| `min_score` | number | 0.05 | Minimum 0, maximum 1. |
+
+Response:
+
+```json
+[
+  {
+    "event": {
+      "id": 1,
+      "source": "clipboard",
+      "event_type": "snippet",
+      "title": "Copied SQL query",
+      "content": "select * from events;",
+      "metadata": {
+        "language": "sql"
+      },
+      "created_at": "2026-08-06T12:00:00Z",
+      "updated_at": "2026-08-06T12:00:00Z"
+    },
+    "score": 0.72
+  }
+]
+```
+
+Semantic search uses local event embeddings stored in SQLite and ranks results with cosine similarity.
+
 ### Get Event
 
 ```text

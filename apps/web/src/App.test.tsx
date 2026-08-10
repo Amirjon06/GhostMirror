@@ -16,6 +16,7 @@ import {
   importEvents,
   listEventSources,
   listEvents,
+  semanticSearchEvents,
   startClipboardMonitor,
   startFilesystemMonitor,
   stopClipboardMonitor,
@@ -34,6 +35,7 @@ vi.mock('./lib/api', () => ({
   importEvents: vi.fn(),
   listEventSources: vi.fn(),
   listEvents: vi.fn(),
+  semanticSearchEvents: vi.fn(),
   startClipboardMonitor: vi.fn(),
   startFilesystemMonitor: vi.fn(),
   stopClipboardMonitor: vi.fn(),
@@ -160,6 +162,7 @@ describe('dashboard', () => {
     vi.mocked(importEvents).mockReset()
     vi.mocked(listEventSources).mockReset()
     vi.mocked(listEvents).mockReset()
+    vi.mocked(semanticSearchEvents).mockReset()
     vi.mocked(startClipboardMonitor).mockReset()
     vi.mocked(startFilesystemMonitor).mockReset()
     vi.mocked(stopClipboardMonitor).mockReset()
@@ -276,6 +279,28 @@ describe('dashboard', () => {
         q: 'main',
         source: 'filesystem',
         eventType: 'file_snapshot',
+      })
+    })
+  })
+
+  it('uses semantic search when semantic mode is selected', async () => {
+    vi.mocked(listEvents).mockResolvedValue(events)
+    vi.mocked(semanticSearchEvents).mockResolvedValue([{ event: events[1], score: 0.73 }])
+
+    renderDashboard()
+
+    await screen.findAllByText('Copied SQL query')
+
+    fireEvent.change(screen.getByPlaceholderText('Search event titles and content...'), {
+      target: { value: 'backend endpoint' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Semantic' }))
+
+    await waitFor(() => {
+      expect(semanticSearchEvents).toHaveBeenCalledWith({
+        q: 'backend endpoint',
+        source: undefined,
+        eventType: undefined,
       })
     })
   })

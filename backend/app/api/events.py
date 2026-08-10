@@ -11,6 +11,7 @@ from app.schemas.event import (
     EventImport,
     EventImportResult,
     EventRead,
+    EventSemanticSearchResult,
     EventSourceStats,
     EventSummary,
     EventUpdate,
@@ -75,6 +76,29 @@ def import_events(
     db: Annotated[Session, Depends(get_db)],
 ) -> EventImportResult:
     return event_service.import_events(db, event_import)
+
+
+@router.get("/search/semantic", response_model=list[EventSemanticSearchResult])
+def semantic_search_events(
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str, Query(min_length=1, max_length=200)],
+    source: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
+    event_type: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    min_score: Annotated[float, Query(ge=0, le=1)] = 0.05,
+) -> list[EventSemanticSearchResult]:
+    results = event_service.semantic_search_events(
+        db,
+        q=q,
+        source=source,
+        event_type=event_type,
+        limit=limit,
+        min_score=min_score,
+    )
+    return [
+        EventSemanticSearchResult(event=EventRead.from_model(event), score=score)
+        for event, score in results
+    ]
 
 
 @router.get("/{event_id}", response_model=EventRead)

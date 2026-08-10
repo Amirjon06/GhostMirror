@@ -129,6 +129,17 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
       return
     }
 
+    if (request.url().includes('/events/search/semantic')) {
+      eventRequests.push(request.url())
+      await route.fulfill({
+        json: events.map((event, index) => ({
+          event,
+          score: index === 0 ? 0.82 : 0.54,
+        })),
+      })
+      return
+    }
+
     if (request.method() === 'GET') {
       eventRequests.push(request.url())
       await route.fulfill({ json: events })
@@ -170,5 +181,10 @@ test('renders dashboard events and sends search filters', async ({ page }) => {
 
   await expect
     .poll(() => eventRequests.some((url) => url.includes('q=main') && url.includes('source=filesystem')))
+    .toBe(true)
+
+  await page.getByRole('button', { name: 'Semantic' }).click()
+  await expect
+    .poll(() => eventRequests.some((url) => url.includes('/events/search/semantic') && url.includes('q=main')))
     .toBe(true)
 })

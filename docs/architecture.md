@@ -27,7 +27,8 @@ GhostMirror currently runs as a local web application with a FastAPI backend and
 2. FastAPI validates request bodies and query parameters with Pydantic and route-level constraints.
 3. Route handlers call service functions for event operations.
 4. Service functions use SQLAlchemy sessions to read and write SQLite data.
-5. Responses are serialized through Pydantic response schemas.
+5. Event writes maintain local embeddings for semantic search.
+6. Responses are serialized through Pydantic response schemas.
 
 ## Database
 
@@ -43,13 +44,25 @@ The `events` table stores:
 - created timestamp
 - updated timestamp
 
+The `event_embeddings` table stores:
+
+- event id
+- provider and model names
+- vector dimensions
+- content hash
+- embedding vector
+- created timestamp
+- updated timestamp
+
 Alembic is used for migrations. The application also calls `Base.metadata.create_all` during startup so local development works against an empty database.
 
 ## Search
 
-The current search implementation uses a SQLite FTS5 virtual table for event titles and content. Database triggers keep the FTS table in sync when events are inserted, updated, or deleted.
+Keyword search uses a SQLite FTS5 virtual table for event titles and content. Database triggers keep the FTS table in sync when events are inserted, updated, or deleted.
 
 Source and event type filters are exact matches. If the FTS table is not available, the backend falls back to case-insensitive keyword matching with SQL `LIKE`.
+
+Semantic search uses local embeddings stored in SQLite. The default embedding provider is deterministic and does not require network access or API keys. The backend embeds the query, compares it with stored event vectors using cosine similarity, and returns ranked results with scores.
 
 ## Ingestion
 

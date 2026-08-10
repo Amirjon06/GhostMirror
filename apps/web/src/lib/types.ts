@@ -25,6 +25,11 @@ export interface EventListParams {
   eventType?: string
 }
 
+export interface SemanticSearchResult {
+  event: EventRecord
+  score: number
+}
+
 export interface EventSummary {
   total_events: number
   source_counts: Record<string, number>

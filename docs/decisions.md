@@ -28,6 +28,14 @@ The event list endpoint uses SQLite FTS5 for keyword search over event title and
 
 The service keeps a `LIKE` fallback for databases where the FTS table is not available.
 
+## Store Local Event Embeddings
+
+Status: accepted
+
+Semantic search uses an `event_embeddings` table with provider, model, dimensions, content hash, and vector data. Event create, update, import, and delete operations keep embeddings aligned with stored events.
+
+The default provider is deterministic and local so development, tests, and benchmarks do not require network access or API keys. The provider can be replaced later without changing the semantic search endpoint shape.
+
 ## Keep Desktop Packaging Out Of The Initial Runtime
 
 Status: accepted

@@ -17,6 +17,10 @@ This roadmap describes planned technical work. It does not imply release dates.
 - Event source statistics API.
 - Event keyword search and filters.
 - SQLite FTS5 indexing for event search.
+- Local event embeddings.
+- Semantic event search endpoint.
+- Search mode toggle in the dashboard.
+- Semantic search benchmark script.
 - Clipboard ingestion command.
 - Filesystem ingestion command.
 - Dashboard integration with the event API.
@@ -31,5 +35,4 @@ This roadmap describes planned technical work. It does not imply release dates.
 
 ## Later
 
-- Add semantic retrieval.
 - Add desktop packaging with Tauri.
